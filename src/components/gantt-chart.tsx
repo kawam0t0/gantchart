@@ -142,7 +142,7 @@ export function GanttChart({}: GanttChartProps) {
     return {
       left: `${startOffset * 40}px`,
       width: `${Math.max(visibleDuration * 40 - 4, 20)}px`, // 最小幅を20pxに設定
-      backgroundColor: task.color || "#f97316", // ここをtask.colorを優先し、デフォルトをオレンジに設定
+      backgroundColor: task.color || "#3b82f6", // task.colorが設定されていない場合のデフォルトを青に設定
       transition: "all 0.2s ease-in-out",
       boxShadow: hoveredTaskId === task.id ? "0 4px 12px 0 rgba(0, 0, 0, 0.15)" : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
       position: "absolute" as const,
@@ -332,7 +332,7 @@ export function GanttChart({}: GanttChartProps) {
       startDate: new Date(),
       endDate: addDays(new Date(), 7),
       category: "洗車場開発",
-      color: "#ff9900",
+      color: "#f97316",
       memo: "",
       isHidden: false,
     })
@@ -552,7 +552,13 @@ export function GanttChart({}: GanttChartProps) {
                   <Label htmlFor="category">カテゴリ</Label> {/* groupからcategoryに変更 */}
                   <Select
                     value={newTask.category}
-                    onValueChange={(value) => setNewTask({ ...newTask, category: value })}
+                    onValueChange={(value) => {
+                      let defaultColor = "#3b82f6" // その他のカテゴリのデフォルト色を青に設定
+                      if (value === "洗車場開発") {
+                        defaultColor = "#f97316" // 「洗車場開発」はオレンジ
+                      }
+                      setNewTask({ ...newTask, category: value, color: defaultColor })
+                    }}
                   >
                     <SelectTrigger className="border-slate-300">
                       <SelectValue placeholder="カテゴリを選択" />
