@@ -6,7 +6,8 @@ import { useProjectStore } from "@/lib/project-store"
 import { useTaskStore } from "@/lib/task-store"
 import { ProjectHeader } from "@/components/project-header"
 import { GanttChart } from "@/components/gantt-chart"
-import { SettingsPanel } from "@/components/settings-panel"
+// SettingsPanel は ProjectHeader 内のダイアログとして表示されるため、ここからは削除
+// import { SettingsPanel } from "@/components/settings-panel"
 import { AutoSaveIndicator } from "@/components/auto-save-indicator"
 import { useAutoSaveStore } from "@/lib/auto-save-store"
 import { Button } from "@/components/ui/button"
@@ -18,7 +19,7 @@ export default function ProjectPage() {
   const projectId = Array.isArray(params.id) ? params.id[0] : params.id
 
   const { projects, currentProject, selectProject, fetchProjects } = useProjectStore()
-  const { fetchTasks } = useTaskStore()
+  const { fetchTasks } = useTaskStore() // fetchTasksはuseTaskStore内で購読されるため、ここでは直接呼び出さない
   const { isSaving } = useAutoSaveStore()
 
   const [isClient, setIsClient] = useState(false)
@@ -60,12 +61,12 @@ export default function ProjectPage() {
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
       <ProjectHeader /> {/* project propは不要になった */}
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
-          <GanttChart /> {/* projectId propは不要になった */}
-        </div>
-        <SettingsPanel /> {/* projectId propは不要になった */}
+      <div className="flex-1 overflow-hidden p-4 md:p-6 lg:p-8">
+        {" "}
+        {/* GanttChartが全幅を占める */}
+        <GanttChart /> {/* projectId propは不要になった */}
       </div>
+      {/* SettingsPanel は ProjectHeader 内のダイアログとして表示されるため、ここからは削除 */}
       <div className="fixed bottom-4 right-4">
         <AutoSaveIndicator isSaving={isSaving} />
       </div>

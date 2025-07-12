@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { format } from "date-fns"
 import { ja } from "date-fns/locale"
-import { CalendarIcon, CheckCircle2, Save } from "lucide-react" // Saveアイコンを追加
+import { CalendarIcon, CheckCircle2, Save } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { useTaskStore } from "@/lib/task-store"
 import { useProjectStore } from "@/lib/project-store"
-import type { TaskStatus } from "@/lib/task-store" // TaskStatusをlib/task-storeからインポート
+import type { TaskStatus } from "@/lib/task-store"
 
 type SettingsPanelProps = {}
 
@@ -389,71 +389,70 @@ export function SettingsPanel({}: SettingsPanelProps) {
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg border shadow-lg">
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-          <div className="space-y-2">
-            <label className="text-sm font-medium flex items-center gap-2 text-slate-700">
-              <CalendarIcon className="h-4 w-4 text-blue-500" />
-              OPEN日
-            </label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={"outline"}
-                  className={cn(
-                    "w-[240px] justify-start text-left font-normal border-slate-300 hover:bg-slate-50 transition-colors",
-                    !openDate && "text-muted-foreground",
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4 text-blue-500" />
-                  {openDate ? format(openDate, "yyyy年MM月dd日", { locale: ja }) : "日付を選択"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={openDate} onSelect={setOpenDate} locale={ja} />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <div className="flex items-center space-x-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
-              <Checkbox
-                id="well-water"
-                checked={useWellWater}
-                onCheckedChange={(checked) => {
-                  setUseWellWater(checked === true)
-                }}
-                className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
-              />
-              <label
-                htmlFor="well-water"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1.5 text-slate-700"
+    <div className="space-y-6 p-4">
+      {" "}
+      {/* ダイアログコンテンツ内のパディングとスペース */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+        <div className="space-y-2">
+          <label className="text-sm font-medium flex items-center gap-2 text-slate-700">
+            <CalendarIcon className="h-4 w-4 text-blue-500" />
+            OPEN日
+          </label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant={"outline"}
+                className={cn(
+                  "w-[240px] justify-start text-left font-normal border-slate-300 hover:bg-slate-50 transition-colors",
+                  !openDate && "text-muted-foreground",
+                )}
               >
-                <span>井戸水使用</span>
-                {useWellWater && <CheckCircle2 className="h-3.5 w-3.5 text-blue-500" />}
-              </label>
-            </div>
-          </div>
+                <CalendarIcon className="mr-2 h-4 w-4 text-blue-500" />
+                {openDate ? format(openDate, "yyyy年MM月dd日", { locale: ja }) : "日付を選択"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={openDate} onSelect={setOpenDate} locale={ja} />
+            </PopoverContent>
+          </Popover>
         </div>
 
-        <Button
-          onClick={handleSaveSettings}
-          className="w-full bg-blue-600 hover:bg-blue-700 transition-all duration-300 shadow-md"
-          disabled={!currentProject}
-        >
-          <Save className="h-4 w-4 mr-2" />
-          設定を保存
-        </Button>
-        <Button
-          onClick={generateSchedule}
-          variant="outline"
-          className="w-full border-blue-300 text-blue-600 hover:bg-blue-50 bg-transparent"
-          disabled={!currentProject || !openDate}
-        >
-          デフォルトスケジュール生成
-        </Button>
+        <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <Checkbox
+              id="well-water"
+              checked={useWellWater}
+              onCheckedChange={(checked) => {
+                setUseWellWater(checked === true)
+              }}
+              className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
+            />
+            <label
+              htmlFor="well-water"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1.5 text-slate-700"
+            >
+              <span>井戸水使用</span>
+              {useWellWater && <CheckCircle2 className="h-3.5 w-3.5 text-blue-500" />}
+            </label>
+          </div>
+        </div>
       </div>
+      <Button
+        onClick={handleSaveSettings}
+        className="w-full bg-blue-600 hover:bg-blue-700 transition-all duration-300 shadow-md"
+        disabled={!currentProject}
+      >
+        <Save className="h-4 w-4 mr-2" />
+        設定を保存
+      </Button>
+      <Button
+        onClick={generateSchedule}
+        variant="outline"
+        className="w-full border-blue-300 text-blue-600 hover:bg-blue-50 bg-transparent"
+        disabled={!currentProject || !openDate}
+      >
+        デフォルトスケジュール生成
+      </Button>
     </div>
   )
 }
