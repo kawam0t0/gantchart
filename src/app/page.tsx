@@ -1,22 +1,53 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { useProjectStore } from "@/lib/project-store"
 import { ProjectList } from "@/components/project-list"
+import { Button } from "@/components/ui/button"
+import { PlusCircle } from "lucide-react"
 
-export default function Home() {
+export default function HomePage() {
+  const { projects, addProject, fetchProjects } = useProjectStore()
+  const router = useRouter()
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+    fetchProjects() // Supabaseからプロジェクトをフェッチ
+  }, [fetchProjects])
+
+  const handleAddProject = async () => {
+    const newProjectId = await addProject(`新規プロジェクト ${projects.length + 1}`)
+    if (newProjectId) {
+      router.push(`/projects/${newProjectId}`)
+    }
+  }
+
+  if (!isClient) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100">
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <p className="text-slate-600">プロジェクトを読み込み中...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-slate-50 to-blue-100 transition-all duration-500">
-      <div className="w-full px-4 py-8 space-y-6">
-        <div className="bg-blue-600 p-6 rounded-lg shadow-lg relative overflow-hidden transition-all duration-300 hover:shadow-xl">
-          <div className="absolute inset-0 bg-blue-500 opacity-20 animate-pulse"></div>
-          <div className="relative z-10">
-            <h1 className="text-3xl font-bold tracking-tight text-white">洗車場開発工程表</h1>
-            <p className="text-blue-100 mt-2">効率的な洗車場開発のためのガントチャート管理ツール</p>
-          </div>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 p-6">
+      <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-8">
+        <h1 className="text-4xl font-extrabold text-slate-800 mb-8 text-center">洗車場開発工程表</h1>
+        <div className="flex justify-center mb-8">
+          <Button
+            onClick={handleAddProject}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg shadow-md transition-all duration-300 flex items-center space-x-2"
+          >
+            <PlusCircle className="h-5 w-5" />
+            <span>新規プロジェクト作成</span>
+          </Button>
         </div>
-
-        <div className="bg-white p-6 rounded-lg border shadow-lg hover:shadow-xl transition-all duration-300">
-          <h2 className="text-xl font-semibold text-slate-800 mb-4">プロジェクト一覧</h2>
-          <p className="text-slate-600 mb-6">既存のプロジェクトを選択するか、新しいプロジェクトを作成してください。</p>
-          <ProjectList />
-        </div>
+        <ProjectList />
       </div>
     </div>
   )

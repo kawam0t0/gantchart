@@ -55,7 +55,7 @@ export function ProjectHeader() {
     }
   }, [currentProject])
 
-  const handleRenameProject = () => {
+  const handleRenameProject = async () => {
     if (!newProjectName.trim()) {
       toast({
         title: "エラー",
@@ -67,7 +67,7 @@ export function ProjectHeader() {
 
     if (!currentProject) return
 
-    updateProjectName(currentProject.id, newProjectName)
+    await updateProjectName(currentProject.id, newProjectName) // 非同期処理を待つ
     setNewProjectName("")
     setIsRenameDialogOpen(false)
 
@@ -94,17 +94,17 @@ export function ProjectHeader() {
   }
 
   // OPEN日を変更（既存タスクの自動調整機能付き）
-  const handleChangeOpenDate = () => {
+  const handleChangeOpenDate = async () => {
     if (!newOpenDate || !currentProject) return
 
     const oldOpenDate = currentProject.openDate ? new Date(currentProject.openDate) : null
 
     // OPEN日を更新
-    updateProjectOpenDate(currentProject.id, newOpenDate)
+    await updateProjectOpenDate(currentProject.id, newOpenDate) // 非同期処理を待つ
 
     // 既存のタスクがある場合、自動調整
     if (oldOpenDate && tasks.length > 0) {
-      adjustExistingTasks(oldOpenDate, newOpenDate)
+      await adjustExistingTasks(oldOpenDate, newOpenDate) // 非同期処理を待つ
     }
 
     setIsOpenDateDialogOpen(false)
@@ -118,30 +118,27 @@ export function ProjectHeader() {
   }
 
   // 既存タスクの日付を自動調整する関数
-  const adjustExistingTasks = (oldOpenDate: Date, newOpenDate: Date) => {
-    if (tasks.length === 0) return
+  const adjustExistingTasks = async (oldOpenDate: Date, newOpenDate: Date) => {
+    if (tasks.length === 0 || !currentProject) return
 
     // 日付の差分を計算（ミリ秒）
     const dateDiff = newOpenDate.getTime() - oldOpenDate.getTime()
 
-    // すべてのタスクの日付を調整
-    const adjustedTasks = tasks.map((task) => {
+    // すべてのタスクの日付を調整し、Supabaseを更新
+    const updatePromises = tasks.map(async (task) => {
       const startDate = new Date(task.startDate)
       const endDate = new Date(task.endDate)
 
-      // 日付を調整
       startDate.setTime(startDate.getTime() + dateDiff)
       endDate.setTime(endDate.getTime() + dateDiff)
 
-      return {
-        ...task,
-        startDate,
-        endDate,
-      }
+      await useTaskStore.getState().updateTask(currentProject.id, task.id, {
+        startDate: startDate.getTime(),
+        endDate: endDate.getTime(),
+      })
     })
 
-    // 調整されたタスクを保存
-    setTasks(adjustedTasks)
+    await Promise.all(updatePromises) // すべての更新が完了するのを待つ
 
     toast({
       title: "スケジュール更新",
