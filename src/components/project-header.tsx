@@ -1,277 +1,481 @@
 "use client"
 
+import type React from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useProjectStore } from "@/lib/project-store"
+import { useTaskStore, type TaskStatus } from "@/lib/task-store" // TaskStatusをインポート
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { ArrowLeft, CalendarIcon, CheckCircle2, Save } from "lucide-react"
 import { format } from "date-fns"
 import { ja } from "date-fns/locale"
-import { ArrowLeft, CalendarIcon, Edit2 } from "lucide-react"
-import { useState, useEffect } from "react"
-
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { useToast } from "@/hooks/use-toast"
-import { useProjectStore } from "@/lib/project-store"
-import { Badge } from "@/components/ui/badge"
-import { AutoSaveIndicator } from "@/components/auto-save-indicator"
-import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { useTaskStore } from "@/lib/task-store"
+import { Calendar } from "@/components/ui/calendar"
+import { Checkbox } from "@/components/ui/checkbox"
+import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
-export function ProjectHeader() {
+type ProjectHeaderProps = {}
+
+export function ProjectHeader({}: ProjectHeaderProps) {
   const router = useRouter()
   const { toast } = useToast()
-  const { currentProject, updateProjectName, updateProjectOpenDate } = useProjectStore()
-  const { tasks, setTasks } = useTaskStore()
+  const { currentProject, updateProject, updateProjectOpenDate, updateProjectUseWellWater } = useProjectStore()
+  const { addTask, deleteAllTasksForProject } = useTaskStore()
 
-  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false)
-  const [newProjectName, setNewProjectName] = useState("")
-  const [isOpenDateDialogOpen, setIsOpenDateDialogOpen] = useState(false)
-  const [newOpenDate, setNewOpenDate] = useState<Date | undefined>(undefined)
-  const [daysUntilOpen, setDaysUntilOpen] = useState(0)
+  const [openDate, setOpenDate] = useState<Date | undefined>(
+    currentProject?.openDate ? new Date(currentProject.openDate) : undefined,
+  )
+  const [useWellWater, setUseWellWater] = useState(currentProject?.useWellWater || false)
 
-  // OPEN日までの日数を計算する関数
-  const getDaysUntilOpen = (openDate: Date) => {
-    if (!openDate) return null
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const diffTime = Math.abs(openDate.getTime() - today.getTime())
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    return diffDays
-  }
-
-  // currentProjectが変更されたら日数を再計算
+  // currentProjectが変更されたらローカルの状態を更新
   useEffect(() => {
-    if (currentProject?.openDate) {
-      const calculatedDays = getDaysUntilOpen(new Date(currentProject.openDate))
-      setDaysUntilOpen(calculatedDays || 0)
+    if (currentProject) {
+      setOpenDate(currentProject.openDate ? new Date(currentProject.openDate) : undefined)
+      setUseWellWater(currentProject.useWellWater)
     }
   }, [currentProject])
 
-  const handleRenameProject = async () => {
-    if (!newProjectName.trim()) {
+  const handleProjectNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (currentProject) {
+      updateProject(currentProject.id, { name: e.target.value })
+    }
+  }
+
+  const handleSaveSettings = async () => {
+    if (currentProject) {
+      await updateProjectOpenDate(currentProject.id, openDate || new Date()) // openDateがundefinedの場合のデフォルト値
+      await updateProjectUseWellWater(currentProject.id, useWellWater)
+      toast({
+        title: "設定保存完了",
+        description: "プロジェクト設定が更新されました。",
+      })
+    }
+  }
+
+  const generateSchedule = async () => {
+    if (!currentProject || !openDate) {
       toast({
         title: "エラー",
-        description: "プロジェクト名を入力してください",
+        description: "プロジェクトのOPEN日を設定してください。",
         variant: "destructive",
       })
       return
     }
 
-    if (!currentProject) return
+    // 既存のタスクを全て削除
+    await deleteAllTasksForProject(currentProject.id) // 非同期処理を待つ
 
-    await updateProjectName(currentProject.id, newProjectName) // 非同期処理を待つ
-    setNewProjectName("")
-    setIsRenameDialogOpen(false)
+    const tasksToGenerate = [
+      {
+        name: "工事請負/洗車機販売契約",
+        category: "バックオフィス",
+        duration: 10,
+        offsetDays: -120, // OPEN日の約4ヶ月前
+        status: "未着手" as TaskStatus,
+        subTasks: [],
+      },
+      {
+        name: "各種請求 (1回目)",
+        category: "バックオフィス",
+        duration: 10,
+        offsetDays: -115, // OPEN日の約4ヶ月前
+        status: "未着手" as TaskStatus,
+        subTasks: [],
+      },
+      {
+        name: "洗車機発注",
+        category: "バックオフィス",
+        duration: 10,
+        offsetDays: -115, // OPEN日の約4ヶ月前
+        status: "未着手" as TaskStatus,
+        subTasks: [],
+      },
+      {
+        name: "地鎮祭",
+        category: "洗車場開発",
+        duration: 4,
+        offsetDays: -105, // OPEN日の約3.5ヶ月前
+        status: "未着手" as TaskStatus,
+        subTasks: [],
+      },
+      {
+        name: "CUB/Comp手配",
+        category: "洗車場開発",
+        duration: 4,
+        offsetDays: -100, // OPEN日の約3.5ヶ月前
+        status: "未着手" as TaskStatus,
+        subTasks: [],
+      },
+      ...(useWellWater
+        ? [
+            {
+              name: "井戸工事",
+              category: "洗車場開発",
+              duration: 15,
+              offsetDays: -100, // OPEN日の約3.5ヶ月前
+              status: "未着手" as TaskStatus,
+              subTasks: [],
+            },
+          ]
+        : []),
+      {
+        name: "洗車場土木関連工事",
+        category: "洗車場開発",
+        duration: 70,
+        offsetDays: -90, // OPEN日の約3ヶ月前
+        status: "未着手" as TaskStatus,
+        subTasks: [],
+      },
+      {
+        name: "ハイロックグッズ既存",
+        category: "バックオフィス",
+        duration: 30,
+        offsetDays: -60, // OPEN日の約2ヶ月前
+        status: "未着手" as TaskStatus,
+        subTasks: [
+          {
+            id: "aluminum-boards",
+            name: "①アルミ合板系",
+            items: [
+              { id: "price-board", name: "料金表（4コース or 2コース）", completed: false },
+              { id: "terms-board", name: "利用規約看板", completed: false },
+              { id: "exit-signal", name: "出口信号看板", completed: false },
+              { id: "towel-board", name: "タオル分別ボード", completed: false },
+            ],
+          },
+          {
+            id: "goods",
+            name: "②グッズ",
+            items: [
+              { id: "subscription-card", name: "サブスクカード　2500枚", completed: false },
+              { id: "subscription-sticker", name: "サブスクカードのシール　1500,500,500,200", completed: false },
+              { id: "subscription-flyer", name: "サブスクフライヤー　1000枚", completed: false },
+              { id: "point-card", name: "ポイントカード　2000枚", completed: false },
+              { id: "terms-paper", name: "利用規約　2500枚", completed: false },
+              { id: "mat-cleaner-sticker", name: "マットクリーナーステッカー", completed: false },
+            ],
+          },
+          {
+            id: "variable-elements",
+            name: "③その他可変要素",
+            items: [
+              { id: "area-map", name: "区画図", completed: false },
+              { id: "machine-wrapping", name: "洗車機ラッピング", completed: false },
+              { id: "point-card-color", name: "ポイントカード（及び各店舗カラーアイコン）　2,000枚", completed: false },
+              { id: "instruction-signs", name: "指示看板等", completed: false },
+              { id: "staff-room-film", name: "スタッフルーム入口フィルム", completed: false },
+              { id: "hp-change", name: "HP変更", completed: false },
+              { id: "special-flyer", name: "３９専用サブスクフライヤー", completed: false },
+              { id: "apparel", name: "アパレル（Tシャツ、パーカー、ベンチコート）", completed: false },
+              { id: "nobori", name: "のぼり", completed: false },
+            ],
+          },
+        ],
+      },
+      {
+        name: "ハイロックグッズ新規",
+        category: "バックオフィス",
+        duration: 30,
+        offsetDays: -60, // OPEN日の約2ヶ月前
+        status: "未着手" as TaskStatus,
+        subTasks: [
+          {
+            id: "new-signage",
+            name: "新規制作物",
+            items: [
+              { id: "signboard", name: "看板", completed: false },
+              { id: "banner", name: "横断幕", completed: false },
+            ],
+          },
+        ],
+      },
+      {
+        name: "プロモーション戦略",
+        category: "バックオフィス",
+        duration: 30,
+        offsetDays: -60, // OPEN日の約2ヶ月前
+        status: "未着手" as TaskStatus,
+        subTasks: [
+          {
+            id: "campaign-planning",
+            name: "キャンペーン企画",
+            items: [
+              { id: "campaign-content", name: "キャンペーン内容", completed: false },
+              { id: "store-name-decision", name: "店舗名確定", completed: false },
+            ],
+          },
+          {
+            id: "teaser-campaign",
+            name: "①ティザー",
+            items: [
+              { id: "teaser-design", name: "デザイン", completed: false },
+              { id: "teaser-confirm", name: "確定", completed: false },
+              { id: "teaser-order", name: "発注", completed: false },
+              { id: "teaser-display", name: "掲示", completed: false },
+            ],
+          },
+          {
+            id: "flyer-campaign",
+            name: "②チラシ",
+            items: [
+              { id: "flyer-design", name: "デザイン", completed: false },
+              { id: "flyer-confirm", name: "確定", completed: false },
+              { id: "flyer-print", name: "印刷", completed: false },
+              { id: "flyer-distribute", name: "配布", completed: false },
+            ],
+          },
+          {
+            id: "sns-influencer",
+            name: "③SNSインフルエンサー",
+            items: [
+              { id: "influencer-selection", name: "選定", completed: false },
+              { id: "influencer-shooting", name: "撮影", completed: false },
+              { id: "influencer-broadcast", name: "配信", completed: false },
+            ],
+          },
+          {
+            id: "other-promotion",
+            name: "④その他",
+            items: [
+              { id: "media-release-day", name: "メディア解放日兼撮影日", completed: false },
+              { id: "cm-shooting-day", name: "CM撮影日", completed: false },
+            ],
+          },
+        ],
+      },
+      {
+        name: "求人系",
+        category: "バックオフィス",
+        duration: 40,
+        offsetDays: -60, // OPEN日の約2ヶ月前
+        status: "未着手" as TaskStatus,
+        subTasks: [
+          {
+            id: "recruitment-process",
+            name: "求人活動",
+            items: [
+              { id: "indeed-marketing", name: "インディード集客開始", completed: false },
+              { id: "interview", name: "面談", completed: false },
+              { id: "hiring", name: "採用", completed: false },
+            ],
+          },
+        ],
+      },
+      {
+        name: "洗車機搬入@伊佐建設",
+        category: "洗車場開発",
+        duration: 4,
+        offsetDays: -45, // OPEN日の約1.5ヶ月前
+        status: "未着手" as TaskStatus,
+        subTasks: [],
+      },
+      {
+        name: "通信系",
+        category: "バックオフィス",
+        duration: 30,
+        offsetDays: -50, // OPEN日の約1.5ヶ月前
+        status: "未着手" as TaskStatus,
+        subTasks: [
+          {
+            id: "contract-procedures",
+            name: "契約/手続き項目",
+            items: [
+              { id: "phone-dialpad", name: "電話開通（ダイアルパッド等）", completed: false },
+              { id: "office-wifi", name: "事務所内wifi", completed: false },
+              { id: "google-setup", name: "Google関連手配", completed: false },
+              { id: "google-map", name: "googlemap作成", completed: false },
+              { id: "sns-creation", name: "SNS作成", completed: false },
+              { id: "airshift", name: "エアシフト", completed: false },
+            ],
+          },
+        ],
+      },
+      {
+        name: "ガラス屋手配",
+        category: "洗車場開発",
+        duration: 4,
+        offsetDays: -40, // OPEN日の約1.5ヶ月前
+        status: "未着手" as TaskStatus,
+        subTasks: [],
+      },
+      {
+        name: "洗車機搬入@候補地",
+        category: "洗車場開発",
+        duration: 4,
+        offsetDays: -24, // OPEN日の約3週間前
+        status: "未着手" as TaskStatus,
+        subTasks: [],
+      },
+      {
+        name: "各種請求 (2回目)",
+        category: "バックオフィス",
+        duration: 7,
+        offsetDays: -24, // 洗車機搬入@候補地の開始日と同じ
+        status: "未着手" as TaskStatus,
+        subTasks: [],
+      },
+      {
+        name: "洗車機設営",
+        category: "洗車場開発",
+        duration: 20,
+        offsetDays: -21, // OPEN日の約3週間前
+        status: "未着手" as TaskStatus,
+        subTasks: [],
+      },
+      {
+        name: "運営備品手配",
+        category: "洗車場開発",
+        duration: 20,
+        offsetDays: -21, // OPEN日の約3週間前
+        status: "未着手" as TaskStatus,
+        subTasks: [],
+      },
+      {
+        name: "ガラスIN",
+        category: "洗車場開発",
+        duration: 5,
+        offsetDays: -11, // OPEN日の約10日前
+        status: "未着手" as TaskStatus,
+        subTasks: [],
+      },
+      {
+        name: "現場研修",
+        category: "バックオフィス",
+        duration: 30,
+        offsetDays: -51, // 洗車機設営の開始日前日から1ヶ月前
+        status: "未着手" as TaskStatus,
+        subTasks: [
+          {
+            id: "training-process",
+            name: "研修プロセス",
+            items: [
+              { id: "internal-selection", name: "社内選定（or幹部採用）", completed: false },
+              { id: "pre-training-theory", name: "事前研修座学", completed: false },
+              { id: "pre-training-practice", name: "事前研修店舗留学", completed: false },
+            ],
+          },
+        ],
+      },
+      {
+        name: "OPEN日",
+        category: "マイルストーン",
+        duration: 1,
+        offsetDays: 0,
+        status: "未着手" as TaskStatus,
+        subTasks: [],
+      },
+    ]
 
-    toast({
-      title: "プロジェクト名変更完了",
-      description: `プロジェクト名を「${newProjectName}」に変更しました`,
-    })
-  }
+    const addPromises = tasksToGenerate.map(async (taskData) => {
+      const startDate = new Date(openDate)
+      startDate.setDate(openDate.getDate() + taskData.offsetDays)
+      const endDate = new Date(startDate)
+      endDate.setDate(startDate.getDate() + taskData.duration - 1)
 
-  const openRenameDialog = () => {
-    if (!currentProject) return
-    setNewProjectName(currentProject.name)
-    setIsRenameDialogOpen(true)
-  }
-
-  // OPEN日変更ダイアログを開く
-  const openChangeDateDialog = () => {
-    if (currentProject?.openDate) {
-      setNewOpenDate(new Date(currentProject.openDate))
-    } else {
-      setNewOpenDate(new Date())
-    }
-    setIsOpenDateDialogOpen(true)
-  }
-
-  // OPEN日を変更（既存タスクの自動調整機能付き）
-  const handleChangeOpenDate = async () => {
-    if (!newOpenDate || !currentProject) return
-
-    const oldOpenDate = currentProject.openDate ? new Date(currentProject.openDate) : null
-
-    // OPEN日を更新
-    await updateProjectOpenDate(currentProject.id, newOpenDate) // 非同期処理を待つ
-
-    // 既存のタスクがある場合、自動調整
-    if (oldOpenDate && tasks.length > 0) {
-      await adjustExistingTasks(oldOpenDate, newOpenDate) // 非同期処理を待つ
-    }
-
-    setIsOpenDateDialogOpen(false)
-
-    toast({
-      title: "OPEN日変更完了",
-      description: `OPEN日を${format(newOpenDate, "yyyy年MM月dd日", { locale: ja })}に変更しました${
-        oldOpenDate && tasks.length > 0 ? "。既存タスクのスケジュールも自動調整されました。" : ""
-      }`,
-    })
-  }
-
-  // 既存タスクの日付を自動調整する関数
-  const adjustExistingTasks = async (oldOpenDate: Date, newOpenDate: Date) => {
-    if (tasks.length === 0 || !currentProject) return
-
-    // 日付の差分を計算（ミリ秒）
-    const dateDiff = newOpenDate.getTime() - oldOpenDate.getTime()
-
-    // すべてのタスクの日付を調整し、Supabaseを更新
-    const updatePromises = tasks.map(async (task) => {
-      const startDate = new Date(task.startDate)
-      const endDate = new Date(task.endDate)
-
-      startDate.setTime(startDate.getTime() + dateDiff)
-      endDate.setTime(endDate.getTime() + dateDiff)
-
-      await useTaskStore.getState().updateTask(currentProject.id, task.id, {
+      await addTask(currentProject.id, {
+        name: taskData.name,
         startDate: startDate.getTime(),
         endDate: endDate.getTime(),
+        duration: taskData.duration,
+        progress: 0,
+        status: taskData.status,
+        dependencies: [],
+        category: taskData.category,
+        subTasks: taskData.subTasks,
+        isHidden: false,
       })
     })
 
-    await Promise.all(updatePromises) // すべての更新が完了するのを待つ
+    await Promise.all(addPromises) // すべてのタスク追加が完了するのを待つ
 
     toast({
-      title: "スケジュール更新",
-      description: `OPEN日の変更に合わせてスケジュールを調整しました`,
+      title: "スケジュール生成完了",
+      description: "デフォルトのスケジュールが生成されました。",
     })
   }
 
-  if (!currentProject) return null
-
   return (
-    <div className="bg-white p-4 rounded-lg border shadow-md">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push("/")}
-            className="mr-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-          >
-            <ArrowLeft className="h-5 w-5" />
+    <Card className="rounded-none border-x-0 border-t-0 shadow-sm">
+      <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white gap-4">
+        <div className="flex items-center space-x-4">
+          <Button variant="ghost" size="icon" onClick={() => router.push("/")}>
+            <ArrowLeft className="h-5 w-5 text-slate-600" />
           </Button>
-
-          <div>
-            <div className="flex items-center">
-              <h2 className="text-xl font-semibold text-slate-800">{currentProject.name}</h2>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={openRenameDialog}
-                className="ml-1 text-slate-400 hover:text-slate-700"
-              >
-                <Edit2 className="h-4 w-4" />
-              </Button>
+          <input
+            type="text"
+            value={currentProject?.name || ""}
+            onChange={handleProjectNameChange}
+            className="text-2xl font-bold text-slate-800 bg-transparent border-none focus:outline-none focus:ring-0 p-0 m-0"
+            aria-label="プロジェクト名"
+          />
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex items-center space-x-2">
+            <div className="text-sm text-slate-600">
+              OPEN日:{" "}
+              <span className="font-medium">
+                {currentProject?.openDate
+                  ? format(new Date(currentProject.openDate), "yyyy年MM月dd日", { locale: ja })
+                  : "未設定"}
+              </span>
             </div>
-
-            {currentProject.openDate && (
-              <div className="space-y-2 mt-1">
-                <div className="flex items-center text-sm text-slate-600">
-                  <CalendarIcon className="h-4 w-4 mr-1 text-blue-500" />
-                  <span>OPEN日: {format(new Date(currentProject.openDate), "yyyy年MM月dd日", { locale: ja })}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={openChangeDateDialog}
-                    className="ml-1 text-slate-400 hover:text-slate-700"
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                </div>
-                <Badge variant="secondary" className="text-xs font-medium">
-                  OPENまであと{daysUntilOpen}日！
-                </Badge>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center">
-          <AutoSaveIndicator />
-        </div>
-      </div>
-
-      {/* 名前変更ダイアログ */}
-      <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>プロジェクト名変更</DialogTitle>
-            <DialogDescription>新しいプロジェクト名を入力してください。</DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Input
-              value={newProjectName}
-              onChange={(e) => setNewProjectName(e.target.value)}
-              placeholder={currentProject.name}
-              className="border-slate-300"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRenameDialogOpen(false)}>
-              キャンセル
-            </Button>
-            <Button onClick={handleRenameProject} className="bg-blue-600 hover:bg-blue-700">
-              変更
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* OPEN日変更ダイアログ */}
-      <Dialog open={isOpenDateDialogOpen} onOpenChange={setIsOpenDateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>OPEN日変更</DialogTitle>
-            <DialogDescription>
-              新しいOPEN日を選択してください。既存のタスクがある場合、スケジュールが自動的に調整されます。
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant={"outline"}
                   className={cn(
-                    "w-full justify-start text-left font-normal border-slate-300",
-                    !newOpenDate && "text-muted-foreground",
+                    "w-[180px] justify-start text-left font-normal border-slate-300 hover:bg-slate-50 transition-colors",
+                    !openDate && "text-muted-foreground",
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4 text-blue-500" />
-                  {newOpenDate ? format(newOpenDate, "yyyy年MM月dd日", { locale: ja }) : "日付を選択"}
+                  {openDate ? format(openDate, "yyyy年MM月dd日", { locale: ja }) : "日付を選択"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={newOpenDate} onSelect={setNewOpenDate} locale={ja} />
+                <Calendar mode="single" selected={openDate} onSelect={setOpenDate} locale={ja} />
               </PopoverContent>
             </Popover>
-            {tasks.length > 0 && (
-              <div className="mt-3 p-3 bg-blue-50 rounded-md">
-                <p className="text-sm text-blue-700">
-                  📅 既存の{tasks.length}個のタスクのスケジュールが自動的に調整されます
-                </p>
-              </div>
-            )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsOpenDateDialogOpen(false)}>
-              キャンセル
-            </Button>
-            <Button onClick={handleChangeOpenDate} className="bg-blue-600 hover:bg-blue-700">
-              変更
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+
+          <div className="flex items-center space-x-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <Checkbox
+              id="well-water"
+              checked={useWellWater}
+              onCheckedChange={(checked) => {
+                setUseWellWater(checked === true)
+              }}
+              className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
+            />
+            <label
+              htmlFor="well-water"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1.5 text-slate-700"
+            >
+              <span>井戸水使用</span>
+              {useWellWater && <CheckCircle2 className="h-3.5 w-3.5 text-blue-500" />}
+            </label>
+          </div>
+
+          <Button
+            onClick={handleSaveSettings}
+            className="bg-blue-600 hover:bg-blue-700 transition-all duration-300 shadow-md"
+            disabled={!currentProject}
+          >
+            <Save className="h-4 w-4 mr-2" />
+            設定を保存
+          </Button>
+          <Button
+            onClick={generateSchedule}
+            variant="outline"
+            className="border-blue-300 text-blue-600 hover:bg-blue-50 bg-transparent"
+            disabled={!currentProject || !openDate}
+          >
+            デフォルトスケジュール生成
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

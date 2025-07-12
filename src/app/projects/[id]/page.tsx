@@ -6,7 +6,7 @@ import { useProjectStore } from "@/lib/project-store"
 import { useTaskStore } from "@/lib/task-store"
 import { ProjectHeader } from "@/components/project-header"
 import { GanttChart } from "@/components/gantt-chart"
-import { SettingsPanel } from "@/components/settings-panel"
+// import { SettingsPanel } from "@/components/settings-panel" // SettingsPanelはProjectHeaderに統合されたため削除
 import { AutoSaveIndicator } from "@/components/auto-save-indicator"
 import { useAutoSaveStore } from "@/lib/auto-save-store"
 import { Button } from "@/components/ui/button"
@@ -59,12 +59,11 @@ export default function ProjectPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
-      <ProjectHeader /> {/* project propは不要になった */}
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
-          <GanttChart /> {/* projectId propは不要になった */}
-        </div>
-        <SettingsPanel /> {/* projectId propは不要になった */}
+      <ProjectHeader />
+      <div className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
+        {" "}
+        {/* SettingsPanelがなくなったため、GanttChartが全幅を占める */}
+        <GanttChart />
       </div>
       <div className="fixed bottom-4 right-4">
         <AutoSaveIndicator isSaving={isSaving} />
