@@ -1,7 +1,7 @@
 "use client"
 
 import { create } from "zustand"
-import { supabaseClient } from "./supabase" // Supabaseクライアントをインポート
+import { supabaseClient } from "./supabase"
 import { useAutoSaveStore } from "./auto-save-store"
 
 export type TaskStatus = "未着手" | "進行中" | "完了" | "遅延"
@@ -20,25 +20,25 @@ export interface SubTaskCategory {
 
 export interface Task {
   id: string
-  project_id: string // Supabaseの外部キーに合わせて追加
+  project_id: string
   name: string
-  startDate: number // Unix timestamp
-  endDate: number // Unix timestamp
-  duration: number // in days
-  progress: number // 0-100
+  startDate: number
+  endDate: number
+  duration: number
+  progress: number
   status: TaskStatus
-  dependencies: string[] // Task IDs
+  dependencies: string[]
   category: string
-  subTasks?: SubTaskCategory[] // Optional sub-tasks
-  isHidden?: boolean // For presentation mode
+  subTasks?: SubTaskCategory[]
+  isHidden?: boolean
   createdAt: Date
   updatedAt: Date
 }
 
 interface TaskState {
-  tasks: Task[] // 現在選択中のプロジェクトのタスクのみを保持
-  fetchTasks: (projectId: string) => Promise<void> // 特定のプロジェクトのタスクをフェッチ
-  setTasks: (tasks: Task[]) => void // リアルタイム更新用
+  tasks: Task[]
+  fetchTasks: (projectId: string) => Promise<void>
+  setTasks: (tasks: Task[]) => void
   addTask: (
     projectId: string,
     task: Omit<Task, "id" | "duration" | "status" | "progress" | "project_id" | "createdAt" | "updatedAt"> & {
@@ -62,7 +62,7 @@ interface TaskState {
 }
 
 export const useTaskStore = create<TaskState>((set, get) => {
-  let taskSubscription: any = null // Supabaseリアルタイム購読の参照
+  let taskSubscription: any = null
   let currentSubscribedProjectId: string | null = null
 
   const subscribeToTasks = (projectId: string) => {
@@ -79,7 +79,7 @@ export const useTaskStore = create<TaskState>((set, get) => {
     currentSubscribedProjectId = projectId
 
     taskSubscription = supabaseClient
-      .channel(`public:tasks:project_id=eq.${projectId}`) // 特定のproject_idにフィルタリング
+      .channel(`public:tasks:project_id=eq.${projectId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "tasks", filter: `project_id=eq.${projectId}` },
@@ -87,7 +87,6 @@ export const useTaskStore = create<TaskState>((set, get) => {
           console.log("Task change received!", payload)
           const { old, new: newRecord, event } = payload
 
-          // 現在購読しているプロジェクトIDと一致する場合のみ更新
           if (currentSubscribedProjectId !== projectId) {
             console.log("Ignoring task change for different project ID.")
             return
@@ -146,7 +145,7 @@ export const useTaskStore = create<TaskState>((set, get) => {
   return {
     tasks: [],
 
-    setTasks: (tasks: Task[]) => set({ tasks }), // リアルタイム更新やスケジュール生成で直接状態をセットするための関数
+    setTasks: (tasks: Task[]) => set({ tasks }),
 
     fetchTasks: async (projectId: string) => {
       if (!projectId) {
@@ -183,7 +182,6 @@ export const useTaskStore = create<TaskState>((set, get) => {
         set({ tasks: fetchedTasks })
         useAutoSaveStore.getState().setSaved()
 
-        // 新しいプロジェクトIDで購読を開始
         subscribeToTasks(projectId)
       } catch (error) {
         console.error("Error fetching tasks:", error)
@@ -218,7 +216,6 @@ export const useTaskStore = create<TaskState>((set, get) => {
 
         if (error) throw error
 
-        // Realtimeが状態を更新するので、ここではローカルの状態更新は不要
         useAutoSaveStore.getState().setSaved()
       } catch (error) {
         console.error("Error adding task:", error)
@@ -245,11 +242,10 @@ export const useTaskStore = create<TaskState>((set, get) => {
           .from("tasks")
           .update(updatePayload)
           .eq("id", taskId)
-          .eq("project_id", projectId) // project_idも条件に含める
+          .eq("project_id", projectId)
 
         if (error) throw error
 
-        // Realtimeが状態を更新するので、ここではローカルの状態更新は不要
         useAutoSaveStore.getState().setSaved()
       } catch (error) {
         console.error("Error updating task:", error)
@@ -260,11 +256,10 @@ export const useTaskStore = create<TaskState>((set, get) => {
     deleteTask: async (projectId, taskId) => {
       useAutoSaveStore.getState().setSaving()
       try {
-        const { error } = await supabaseClient.from("tasks").delete().eq("id", taskId).eq("project_id", projectId) // project_idも条件に含める
+        const { error } = await supabaseClient.from("tasks").delete().eq("id", taskId).eq("project_id", projectId)
 
         if (error) throw error
 
-        // Realtimeが状態を更新するので、ここではローカルの状態更新は不要
         useAutoSaveStore.getState().setSaved()
       } catch (error) {
         console.error("Error deleting task:", error)
@@ -295,7 +290,6 @@ export const useTaskStore = create<TaskState>((set, get) => {
 
         if (error) throw error
 
-        // Realtimeが状態を更新するので、ここではローカルの状態更新は不要
         useAutoSaveStore.getState().setSaved()
       } catch (error) {
         console.error("Error updating subtask item:", error)
@@ -314,7 +308,6 @@ export const useTaskStore = create<TaskState>((set, get) => {
 
         if (error) throw error
 
-        // Realtimeが状態を更新するので、ここではローカルの状態更新は不要
         useAutoSaveStore.getState().setSaved()
       } catch (error) {
         console.error("Error toggling task visibility:", error)
@@ -329,7 +322,6 @@ export const useTaskStore = create<TaskState>((set, get) => {
 
         if (error) throw error
 
-        // Realtimeが状態を更新するので、ここではローカルの状態更新は不要
         useAutoSaveStore.getState().setSaved()
       } catch (error) {
         console.error("Error deleting all tasks for project:", error)

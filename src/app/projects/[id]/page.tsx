@@ -7,35 +7,31 @@ import { useTaskStore } from "@/lib/task-store"
 import { ProjectHeader } from "@/components/project-header"
 import { GanttChart } from "@/components/gantt-chart"
 import { AutoSaveIndicator } from "@/components/auto-save-indicator"
+import { Toaster } from "@/components/ui/toaster"
 
 export default function ProjectPage() {
   const params = useParams()
   const projectId = params.id as string
 
-  const { projects, currentProject, setCurrentProject, fetchProjects } = useProjectStore()
+  const { currentProject, selectProject, fetchProjects } = useProjectStore()
   const { fetchTasks } = useTaskStore()
 
   useEffect(() => {
-    // Fetch projects if not already loaded
-    if (projects.length === 0) {
-      fetchProjects()
+    if (projectId) {
+      // Fetch projects first if not already loaded
+      fetchProjects().then(() => {
+        selectProject(projectId)
+        fetchTasks(projectId)
+      })
     }
-  }, [projects.length, fetchProjects])
-
-  useEffect(() => {
-    // Set current project when projectId changes
-    if (projectId && projects.length > 0) {
-      setCurrentProject(projectId)
-      fetchTasks(projectId)
-    }
-  }, [projectId, projects, setCurrentProject, fetchTasks])
+  }, [projectId, selectProject, fetchTasks, fetchProjects])
 
   if (!currentProject) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">プロジェクトを読み込んでいます...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">プロジェクトを読み込み中...</p>
         </div>
       </div>
     )
@@ -43,15 +39,18 @@ export default function ProjectPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <ProjectHeader />
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex gap-6">
-          <div className="flex-1">
-            <GanttChart projectId={projectId} />
-          </div>
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <ProjectHeader />
         </div>
       </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <GanttChart />
+      </div>
+
       <AutoSaveIndicator />
+      <Toaster />
     </div>
   )
 }

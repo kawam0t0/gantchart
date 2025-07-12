@@ -1,443 +1,104 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+import { useProjectStore } from "@/lib/project-store"
+import { useTaskStore } from "@/lib/task-store"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { CalendarIcon, Trash2 } from "lucide-react"
 import { format } from "date-fns"
 import { ja } from "date-fns/locale"
-import { CalendarIcon, Save } from "lucide-react"
-
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
-import { useTaskStore } from "@/lib/task-store"
-import { useProjectStore } from "@/lib/project-store"
-import type { TaskStatus } from "@/lib/task-store"
 
-export function SettingsPanel() {
-  const { currentProject, updateProjectOpenDate, updateProjectUseWellWater } = useProjectStore()
-  const { addTask, deleteAllTasksForProject } = useTaskStore()
-  const { toast } = useToast()
+interface SettingsPanelProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
 
-  const [openDate, setOpenDate] = useState<Date | undefined>(
-    currentProject?.openDate ? new Date(currentProject.openDate) : undefined,
-  )
-  const [useWellWater, setUseWellWater] = useState(currentProject?.useWellWater || false)
+export function SettingsPanel({ open, onOpenChange }: SettingsPanelProps) {
+  const { currentProject, updateProjectOpenDate, updateProjectUseWellWater, deleteProject } = useProjectStore()
+  const { deleteAllTasksForProject } = useTaskStore()
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(currentProject?.openDate || undefined)
 
-  useEffect(() => {
-    if (currentProject) {
-      setOpenDate(currentProject.openDate ? new Date(currentProject.openDate) : undefined)
-      setUseWellWater(currentProject.useWellWater)
-    }
-  }, [currentProject])
+  if (!currentProject) return null
 
-  const handleSaveSettings = async () => {
-    if (currentProject) {
-      await updateProjectOpenDate(currentProject.id, openDate || new Date())
-      await updateProjectUseWellWater(currentProject.id, useWellWater)
-      toast({
-        title: "設定保存完了",
-        description: "プロジェクト設定が更新されました。",
-      })
+  const handleDateSelect = async (date: Date | undefined) => {
+    if (date) {
+      setSelectedDate(date)
+      await updateProjectOpenDate(currentProject.id, date)
     }
   }
 
-  const generateSchedule = async () => {
-    if (!currentProject || !openDate) {
-      toast({
-        title: "エラー",
-        description: "プロジェクトのOPEN日を設定してください。",
-        variant: "destructive",
-      })
-      return
+  const handleWellWaterToggle = async (checked: boolean) => {
+    await updateProjectUseWellWater(currentProject.id, checked)
+  }
+
+  const handleDeleteAllTasks = async () => {
+    if (confirm("すべてのタスクを削除しますか？この操作は元に戻せません。")) {
+      await deleteAllTasksForProject(currentProject.id)
     }
+  }
 
-    await deleteAllTasksForProject(currentProject.id)
-
-    const tasksToGenerate = [
-      {
-        name: "工事請負/洗車機販売契約",
-        category: "バックオフィス",
-        duration: 10,
-        offsetDays: -120,
-        status: "未着手" as TaskStatus,
-        subTasks: [],
-      },
-      {
-        name: "各種請求 (1回目)",
-        category: "バックオフィス",
-        duration: 10,
-        offsetDays: -115,
-        status: "未着手" as TaskStatus,
-        subTasks: [],
-      },
-      {
-        name: "洗車機発注",
-        category: "バックオフィス",
-        duration: 10,
-        offsetDays: -115,
-        status: "未着手" as TaskStatus,
-        subTasks: [],
-      },
-      {
-        name: "地鎮祭",
-        category: "洗車場開発",
-        duration: 4,
-        offsetDays: -105,
-        status: "未着手" as TaskStatus,
-        subTasks: [],
-      },
-      {
-        name: "CUB/Comp手配",
-        category: "洗車場開発",
-        duration: 4,
-        offsetDays: -100,
-        status: "未着手" as TaskStatus,
-        subTasks: [],
-      },
-      ...(useWellWater
-        ? [
-            {
-              name: "井戸工事",
-              category: "洗車場開発",
-              duration: 15,
-              offsetDays: -100,
-              status: "未着手" as TaskStatus,
-              subTasks: [],
-            },
-          ]
-        : []),
-      {
-        name: "洗車場土木関連工事",
-        category: "洗車場開発",
-        duration: 70,
-        offsetDays: -90,
-        status: "未着手" as TaskStatus,
-        subTasks: [],
-      },
-      {
-        name: "ハイロックグッズ既存",
-        category: "バックオフィス",
-        duration: 30,
-        offsetDays: -60,
-        status: "未着手" as TaskStatus,
-        subTasks: [
-          {
-            id: "aluminum-boards",
-            name: "①アルミ合板系",
-            items: [
-              { id: "price-board", name: "料金表（4コース or 2コース）", completed: false },
-              { id: "terms-board", name: "利用規約看板", completed: false },
-              { id: "exit-signal", name: "出口信号看板", completed: false },
-              { id: "towel-board", name: "タオル分別ボード", completed: false },
-            ],
-          },
-          {
-            id: "goods",
-            name: "②グッズ",
-            items: [
-              { id: "subscription-card", name: "サブスクカード　2500枚", completed: false },
-              { id: "subscription-sticker", name: "サブスクカードのシール　1500,500,500,200", completed: false },
-              { id: "subscription-flyer", name: "サブスクフライヤー　1000枚", completed: false },
-              { id: "point-card", name: "ポイントカード　2000枚", completed: false },
-              { id: "terms-paper", name: "利用規約　2500枚", completed: false },
-              { id: "mat-cleaner-sticker", name: "マットクリーナーステッカー", completed: false },
-            ],
-          },
-          {
-            id: "variable-elements",
-            name: "③その他可変要素",
-            items: [
-              { id: "area-map", name: "区画図", completed: false },
-              { id: "machine-wrapping", name: "洗車機ラッピング", completed: false },
-              { id: "point-card-color", name: "ポイントカード（及び各店舗カラーアイコン）　2,000枚", completed: false },
-              { id: "instruction-signs", name: "指示看板等", completed: false },
-              { id: "staff-room-film", name: "スタッフルーム入口フィルム", completed: false },
-              { id: "hp-change", name: "HP変更", completed: false },
-              { id: "special-flyer", name: "３９専用サブスクフライヤー", completed: false },
-              { id: "apparel", name: "アパレル（Tシャツ、パーカー、ベンチコート）", completed: false },
-              { id: "nobori", name: "のぼり", completed: false },
-            ],
-          },
-        ],
-      },
-      {
-        name: "ハイロックグッズ新規",
-        category: "バックオフィス",
-        duration: 30,
-        offsetDays: -60,
-        status: "未着手" as TaskStatus,
-        subTasks: [
-          {
-            id: "new-signage",
-            name: "新規制作物",
-            items: [
-              { id: "signboard", name: "看板", completed: false },
-              { id: "banner", name: "横断幕", completed: false },
-            ],
-          },
-        ],
-      },
-      {
-        name: "プロモーション戦略",
-        category: "バックオフィス",
-        duration: 30,
-        offsetDays: -60,
-        status: "未着手" as TaskStatus,
-        subTasks: [
-          {
-            id: "campaign-planning",
-            name: "キャンペーン企画",
-            items: [
-              { id: "campaign-content", name: "キャンペーン内容", completed: false },
-              { id: "store-name-decision", name: "店舗名確定", completed: false },
-            ],
-          },
-          {
-            id: "teaser-campaign",
-            name: "①ティザー",
-            items: [
-              { id: "teaser-design", name: "デザイン", completed: false },
-              { id: "teaser-confirm", name: "確定", completed: false },
-              { id: "teaser-order", name: "発注", completed: false },
-              { id: "teaser-display", name: "掲示", completed: false },
-            ],
-          },
-          {
-            id: "flyer-campaign",
-            name: "②チラシ",
-            items: [
-              { id: "flyer-design", name: "デザイン", completed: false },
-              { id: "flyer-confirm", name: "確定", completed: false },
-              { id: "flyer-print", name: "印刷", completed: false },
-              { id: "flyer-distribute", name: "配布", completed: false },
-            ],
-          },
-          {
-            id: "sns-influencer",
-            name: "③SNSインフルエンサー",
-            items: [
-              { id: "influencer-selection", name: "選定", completed: false },
-              { id: "influencer-shooting", name: "撮影", completed: false },
-              { id: "influencer-broadcast", name: "配信", completed: false },
-            ],
-          },
-          {
-            id: "other-promotion",
-            name: "④その他",
-            items: [
-              { id: "media-release-day", name: "メディア解放日兼撮影日", completed: false },
-              { id: "cm-shooting-day", name: "CM撮影日", completed: false },
-            ],
-          },
-        ],
-      },
-      {
-        name: "求人系",
-        category: "バックオフィス",
-        duration: 40,
-        offsetDays: -60,
-        status: "未着手" as TaskStatus,
-        subTasks: [
-          {
-            id: "recruitment-process",
-            name: "求人活動",
-            items: [
-              { id: "indeed-marketing", name: "インディード集客開始", completed: false },
-              { id: "interview", name: "面談", completed: false },
-              { id: "hiring", name: "採用", completed: false },
-            ],
-          },
-        ],
-      },
-      {
-        name: "洗車機搬入@伊佐建設",
-        category: "洗車場開発",
-        duration: 4,
-        offsetDays: -45,
-        status: "未着手" as TaskStatus,
-        subTasks: [],
-      },
-      {
-        name: "通信系",
-        category: "バックオフィス",
-        duration: 30,
-        offsetDays: -50,
-        status: "未着手" as TaskStatus,
-        subTasks: [
-          {
-            id: "contract-procedures",
-            name: "契約/手続き項目",
-            items: [
-              { id: "phone-dialpad", name: "電話開通（ダイアルパッド等）", completed: false },
-              { id: "office-wifi", name: "事務所内wifi", completed: false },
-              { id: "google-setup", name: "Google関連手配", completed: false },
-              { id: "google-map", name: "googlemap作成", completed: false },
-              { id: "sns-creation", name: "SNS作成", completed: false },
-              { id: "airshift", name: "エアシフト", completed: false },
-            ],
-          },
-        ],
-      },
-      {
-        name: "ガラス屋手配",
-        category: "洗車場開発",
-        duration: 4,
-        offsetDays: -40,
-        status: "未着手" as TaskStatus,
-        subTasks: [],
-      },
-      {
-        name: "洗車機搬入@候補地",
-        category: "洗車場開発",
-        duration: 4,
-        offsetDays: -24,
-        status: "未着手" as TaskStatus,
-        subTasks: [],
-      },
-      {
-        name: "各種請求 (2回目)",
-        category: "バックオフィス",
-        duration: 7,
-        offsetDays: -24,
-        status: "未着手" as TaskStatus,
-        subTasks: [],
-      },
-      {
-        name: "洗車機設営",
-        category: "洗車場開発",
-        duration: 20,
-        offsetDays: -21,
-        status: "未着手" as TaskStatus,
-        subTasks: [],
-      },
-      {
-        name: "運営備品手配",
-        category: "洗車場開発",
-        duration: 20,
-        offsetDays: -21,
-        status: "未着手" as TaskStatus,
-        subTasks: [],
-      },
-      {
-        name: "ガラスIN",
-        category: "洗車場開発",
-        duration: 5,
-        offsetDays: -11,
-        status: "未着手" as TaskStatus,
-        subTasks: [],
-      },
-      {
-        name: "現場研修",
-        category: "��ックオフィス",
-        duration: 30,
-        offsetDays: -51,
-        status: "未着手" as TaskStatus,
-        subTasks: [
-          {
-            id: "training-process",
-            name: "研修プロセス",
-            items: [
-              { id: "internal-selection", name: "社内選定（or幹部採用）", completed: false },
-              { id: "pre-training-theory", name: "事前研修座学", completed: false },
-              { id: "pre-training-practice", name: "事前研修店舗留学", completed: false },
-            ],
-          },
-        ],
-      },
-    ]
-
-    const addPromises = tasksToGenerate.map(async (taskData) => {
-      const startDate = new Date(openDate)
-      startDate.setDate(openDate.getDate() + taskData.offsetDays)
-      const endDate = new Date(startDate)
-      endDate.setDate(startDate.getDate() + taskData.duration - 1)
-
-      await addTask(currentProject.id, {
-        name: taskData.name,
-        startDate: startDate.getTime(),
-        endDate: endDate.getTime(),
-        duration: taskData.duration,
-        progress: 0,
-        status: taskData.status,
-        dependencies: [],
-        category: taskData.category,
-        subTasks: taskData.subTasks,
-        isHidden: false,
-      })
-    })
-
-    await Promise.all(addPromises)
-
-    toast({
-      title: "スケジュール生成完了",
-      description: "デフォルトのスケジュールが生成されました。",
-    })
+  const handleDeleteProject = async () => {
+    if (confirm(`プロジェクト「${currentProject.name}」を削除しますか？この操作は元に戻せません。`)) {
+      await deleteProject(currentProject.id)
+      onOpenChange(false)
+    }
   }
 
   return (
-    <div className="space-y-6 p-4">
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium flex items-center gap-2 text-slate-700">
-            <CalendarIcon className="h-4 w-4 text-blue-500" />
-            OPEN日
-          </label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant={"outline"}
-                className={cn(
-                  "w-full justify-start text-left font-normal border-slate-300 hover:bg-slate-50 transition-colors",
-                  !openDate && "text-muted-foreground",
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4 text-blue-500" />
-                {openDate ? format(openDate, "yyyy年MM月dd日", { locale: ja }) : "日付を選択"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={openDate} onSelect={setOpenDate} locale={ja} />
-            </PopoverContent>
-          </Popover>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>プロジェクト設定</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* OPEN日設定 */}
+          <div className="space-y-2">
+            <Label htmlFor="open-date">OPEN日</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn("w-full justify-start text-left font-normal", !selectedDate && "text-muted-foreground")}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? format(selectedDate, "yyyy年MM月dd日", { locale: ja }) : <span>日付を選択</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={selectedDate} onSelect={handleDateSelect} initialFocus />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* 井戸水使用設定 */}
+          <div className="flex items-center justify-between">
+            <Label htmlFor="well-water">井戸水</Label>
+            <Switch id="well-water" checked={currentProject.useWellWater} onCheckedChange={handleWellWaterToggle} />
+          </div>
+
+          {/* 危険な操作 */}
+          <div className="space-y-4 pt-4 border-t">
+            <h3 className="text-sm font-medium text-red-600">危険な操作</h3>
+
+            <Button variant="destructive" size="sm" onClick={handleDeleteAllTasks} className="w-full">
+              <Trash2 className="mr-2 h-4 w-4" />
+              すべてのタスクを削除
+            </Button>
+
+            <Button variant="destructive" size="sm" onClick={handleDeleteProject} className="w-full">
+              <Trash2 className="mr-2 h-4 w-4" />
+              プロジェクトを削除
+            </Button>
+          </div>
         </div>
-
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="well-water"
-            checked={useWellWater}
-            onCheckedChange={(checked) => {
-              setUseWellWater(checked === true)
-            }}
-            className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
-          />
-          <label
-            htmlFor="well-water"
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-700"
-          >
-            井戸水
-          </label>
-        </div>
-      </div>
-
-      <Button
-        onClick={handleSaveSettings}
-        className="w-full bg-blue-600 hover:bg-blue-700 transition-all duration-300 shadow-md"
-        disabled={!currentProject}
-      >
-        <Save className="h-4 w-4 mr-2" />
-        設定を保存
-      </Button>
-
-      <Button
-        onClick={generateSchedule}
-        variant="outline"
-        className="w-full border-blue-300 text-blue-600 hover:bg-blue-50 bg-transparent"
-        disabled={!currentProject || !openDate}
-      >
-        デフォルトスケジュール生成
-      </Button>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
