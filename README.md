@@ -1,36 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 洗車場開発工程表 | SPLASH'N'GO!
 
-## Getting Started
+効率的な洗車場開発のためのガントチャート管理ツール
 
-First, run the development server:
+## 🚀 機能
 
-```bash
+- 📊 **ガントチャート表示**: 視覚的なプロジェクト管理
+- 📅 **OPEN日設定**: 自動スケジュール調整
+- 💾 **自動保存**: データの自動保存機能
+- 📝 **サブタスク管理**: 各タスクに詳細なサブタスクを追加・管理
+- 👁️ **タスク非表示**: 特定のタスクをガントチャートから一時的に非表示に設定
+- 📱 **レスポンシブ対応**: モバイル・タブレット対応
+
+## 🛠️ 技術スタック
+
+- **フレームワーク**: Next.js 15
+- **言語**: TypeScript
+- **スタイリング**: Tailwind CSS
+- **UI コンポーネント**: Radix UI + shadcn/ui
+- **状態管理**: Zustand
+- **日付処理**: date-fns
+- **アイコン**: Lucide React
+
+## 🚀 デプロイ
+
+このアプリケーションはVercelでホストされています。
+
+### 開発環境での実行
+
+\`\`\`bash
+# 依存関係のインストール
+npm install
+
+# 開発サーバーの起動
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+\`\`\`
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 本番ビルド
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+\`\`\`bash
+# 本番用ビルド
+npm run build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# 本番サーバーの起動
+npm run start
+\`\`\`
 
-## Learn More
+## 📄 ライセンス
 
-To learn more about Next.js, take a look at the following resources:
+© 2025 SPLASH'N'GO! All rights reserved.
+\`\`\`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```text file=".gitignore"
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
 
-## Deploy on Vercel
+# testing
+/coverage
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# next.js build output
+/.next/
+/out/
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# local env files
+.env*.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+
+# editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.bak
