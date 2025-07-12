@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { format } from "date-fns"
 import { ja } from "date-fns/locale"
-import { CalendarIcon, Save } from "lucide-react" // CheckCircle2 は不要になったため削除
+import { CalendarIcon, Save } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -15,9 +15,7 @@ import { useTaskStore } from "@/lib/task-store"
 import { useProjectStore } from "@/lib/project-store"
 import type { TaskStatus } from "@/lib/task-store"
 
-type SettingsPanelProps = {}
-
-export function SettingsPanel({}: SettingsPanelProps) {
+export function SettingsPanel() {
   const { currentProject, updateProjectOpenDate, updateProjectUseWellWater } = useProjectStore()
   const { addTask, deleteAllTasksForProject } = useTaskStore()
   const { toast } = useToast()
@@ -27,7 +25,6 @@ export function SettingsPanel({}: SettingsPanelProps) {
   )
   const [useWellWater, setUseWellWater] = useState(currentProject?.useWellWater || false)
 
-  // currentProjectが変更されたらローカルの状態を更新
   useEffect(() => {
     if (currentProject) {
       setOpenDate(currentProject.openDate ? new Date(currentProject.openDate) : undefined)
@@ -37,7 +34,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
 
   const handleSaveSettings = async () => {
     if (currentProject) {
-      await updateProjectOpenDate(currentProject.id, openDate || new Date()) // openDateがundefinedの場合のデフォルト値
+      await updateProjectOpenDate(currentProject.id, openDate || new Date())
       await updateProjectUseWellWater(currentProject.id, useWellWater)
       toast({
         title: "設定保存完了",
@@ -56,15 +53,14 @@ export function SettingsPanel({}: SettingsPanelProps) {
       return
     }
 
-    // 既存のタスクを全て削除
-    await deleteAllTasksForProject(currentProject.id) // 非同期処理を待つ
+    await deleteAllTasksForProject(currentProject.id)
 
     const tasksToGenerate = [
       {
         name: "工事請負/洗車機販売契約",
         category: "バックオフィス",
         duration: 10,
-        offsetDays: -120, // OPEN日の約4ヶ月前
+        offsetDays: -120,
         status: "未着手" as TaskStatus,
         subTasks: [],
       },
@@ -72,7 +68,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
         name: "各種請求 (1回目)",
         category: "バックオフィス",
         duration: 10,
-        offsetDays: -115, // OPEN日の約4ヶ月前
+        offsetDays: -115,
         status: "未着手" as TaskStatus,
         subTasks: [],
       },
@@ -80,7 +76,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
         name: "洗車機発注",
         category: "バックオフィス",
         duration: 10,
-        offsetDays: -115, // OPEN日の約4ヶ月前
+        offsetDays: -115,
         status: "未着手" as TaskStatus,
         subTasks: [],
       },
@@ -88,7 +84,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
         name: "地鎮祭",
         category: "洗車場開発",
         duration: 4,
-        offsetDays: -105, // OPEN日の約3.5ヶ月前
+        offsetDays: -105,
         status: "未着手" as TaskStatus,
         subTasks: [],
       },
@@ -96,7 +92,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
         name: "CUB/Comp手配",
         category: "洗車場開発",
         duration: 4,
-        offsetDays: -100, // OPEN日の約3.5ヶ月前
+        offsetDays: -100,
         status: "未着手" as TaskStatus,
         subTasks: [],
       },
@@ -106,7 +102,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
               name: "井戸工事",
               category: "洗車場開発",
               duration: 15,
-              offsetDays: -100, // OPEN日の約3.5ヶ月前
+              offsetDays: -100,
               status: "未着手" as TaskStatus,
               subTasks: [],
             },
@@ -116,7 +112,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
         name: "洗車場土木関連工事",
         category: "洗車場開発",
         duration: 70,
-        offsetDays: -90, // OPEN日の約3ヶ月前
+        offsetDays: -90,
         status: "未着手" as TaskStatus,
         subTasks: [],
       },
@@ -124,7 +120,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
         name: "ハイロックグッズ既存",
         category: "バックオフィス",
         duration: 30,
-        offsetDays: -60, // OPEN日の約2ヶ月前
+        offsetDays: -60,
         status: "未着手" as TaskStatus,
         subTasks: [
           {
@@ -170,7 +166,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
         name: "ハイロックグッズ新規",
         category: "バックオフィス",
         duration: 30,
-        offsetDays: -60, // OPEN日の約2ヶ月前
+        offsetDays: -60,
         status: "未着手" as TaskStatus,
         subTasks: [
           {
@@ -187,7 +183,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
         name: "プロモーション戦略",
         category: "バックオフィス",
         duration: 30,
-        offsetDays: -60, // OPEN日の約2ヶ月前
+        offsetDays: -60,
         status: "未着手" as TaskStatus,
         subTasks: [
           {
@@ -241,7 +237,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
         name: "求人系",
         category: "バックオフィス",
         duration: 40,
-        offsetDays: -60, // OPEN日の約2ヶ月前
+        offsetDays: -60,
         status: "未着手" as TaskStatus,
         subTasks: [
           {
@@ -259,7 +255,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
         name: "洗車機搬入@伊佐建設",
         category: "洗車場開発",
         duration: 4,
-        offsetDays: -45, // OPEN日の約1.5ヶ月前
+        offsetDays: -45,
         status: "未着手" as TaskStatus,
         subTasks: [],
       },
@@ -267,7 +263,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
         name: "通信系",
         category: "バックオフィス",
         duration: 30,
-        offsetDays: -50, // OPEN日の約1.5ヶ月前
+        offsetDays: -50,
         status: "未着手" as TaskStatus,
         subTasks: [
           {
@@ -288,7 +284,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
         name: "ガラス屋手配",
         category: "洗車場開発",
         duration: 4,
-        offsetDays: -40, // OPEN日の約1.5ヶ月前
+        offsetDays: -40,
         status: "未着手" as TaskStatus,
         subTasks: [],
       },
@@ -296,7 +292,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
         name: "洗車機搬入@候補地",
         category: "洗車場開発",
         duration: 4,
-        offsetDays: -24, // OPEN日の約3週間前
+        offsetDays: -24,
         status: "未着手" as TaskStatus,
         subTasks: [],
       },
@@ -304,7 +300,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
         name: "各種請求 (2回目)",
         category: "バックオフィス",
         duration: 7,
-        offsetDays: -24, // 洗車機搬入@候補地の開始日と同じ
+        offsetDays: -24,
         status: "未着手" as TaskStatus,
         subTasks: [],
       },
@@ -312,7 +308,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
         name: "洗車機設営",
         category: "洗車場開発",
         duration: 20,
-        offsetDays: -21, // OPEN日の約3週間前
+        offsetDays: -21,
         status: "未着手" as TaskStatus,
         subTasks: [],
       },
@@ -320,7 +316,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
         name: "運営備品手配",
         category: "洗車場開発",
         duration: 20,
-        offsetDays: -21, // OPEN日の約3週間前
+        offsetDays: -21,
         status: "未着手" as TaskStatus,
         subTasks: [],
       },
@@ -328,15 +324,15 @@ export function SettingsPanel({}: SettingsPanelProps) {
         name: "ガラスIN",
         category: "洗車場開発",
         duration: 5,
-        offsetDays: -11, // OPEN日の約10日前
+        offsetDays: -11,
         status: "未着手" as TaskStatus,
         subTasks: [],
       },
       {
         name: "現場研修",
-        category: "バックオフィス",
+        category: "��ックオフィス",
         duration: 30,
-        offsetDays: -51, // 洗車機設営の開始日前日から1ヶ月前
+        offsetDays: -51,
         status: "未着手" as TaskStatus,
         subTasks: [
           {
@@ -349,15 +345,6 @@ export function SettingsPanel({}: SettingsPanelProps) {
             ],
           },
         ],
-      },
-      {
-        name: "OPEN日",
-        category: "マイルストーン",
-        duration: 1,
-        offsetDays: 0,
-        status: "未着手" as TaskStatus,
-        subTasks: [],
-        isHidden: true, // OPEN日タスクを非表示にする
       },
     ]
 
@@ -377,11 +364,11 @@ export function SettingsPanel({}: SettingsPanelProps) {
         dependencies: [],
         category: taskData.category,
         subTasks: taskData.subTasks,
-        isHidden: taskData.isHidden || false, // isHiddenを考慮
+        isHidden: false,
       })
     })
 
-    await Promise.all(addPromises) // すべてのタスク追加が完了するのを待つ
+    await Promise.all(addPromises)
 
     toast({
       title: "スケジュール生成完了",
@@ -391,7 +378,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
 
   return (
     <div className="space-y-6 p-4">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+      <div className="space-y-4">
         <div className="space-y-2">
           <label className="text-sm font-medium flex items-center gap-2 text-slate-700">
             <CalendarIcon className="h-4 w-4 text-blue-500" />
@@ -402,7 +389,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
               <Button
                 variant={"outline"}
                 className={cn(
-                  "w-[240px] justify-start text-left font-normal border-slate-300 hover:bg-slate-50 transition-colors",
+                  "w-full justify-start text-left font-normal border-slate-300 hover:bg-slate-50 transition-colors",
                   !openDate && "text-muted-foreground",
                 )}
               >
@@ -416,7 +403,6 @@ export function SettingsPanel({}: SettingsPanelProps) {
           </Popover>
         </div>
 
-        {/* 井戸水使用のレイアウトを修正 */}
         <div className="flex items-center space-x-2">
           <Checkbox
             id="well-water"
@@ -430,10 +416,11 @@ export function SettingsPanel({}: SettingsPanelProps) {
             htmlFor="well-water"
             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-700"
           >
-            井戸水使用
+            井戸水
           </label>
         </div>
       </div>
+
       <Button
         onClick={handleSaveSettings}
         className="w-full bg-blue-600 hover:bg-blue-700 transition-all duration-300 shadow-md"
@@ -442,6 +429,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
         <Save className="h-4 w-4 mr-2" />
         設定を保存
       </Button>
+
       <Button
         onClick={generateSchedule}
         variant="outline"

@@ -1,312 +1,194 @@
 "use client"
 
 import { create } from "zustand"
-import { supabaseClient } from "./supabase" // Supabaseクライアントをインポート
-import { useTaskStore } from "./task-store"
+import { persist } from "zustand/middleware"
+import { supabaseClient } from "./supabase"
 import { useAutoSaveStore } from "./auto-save-store"
 
-export type Project = {
+export interface Project {
   id: string
   name: string
-  openDate?: Date | null
-  useWellWater: boolean // 新しいプロパティを追加
+  description?: string
+  openDate?: string // ISO string
+  useWellWater: boolean
   createdAt: Date
   updatedAt: Date
 }
 
-type ProjectStore = {
+interface ProjectState {
   projects: Project[]
-  currentProjectId: string | null
   currentProject: Project | null
-  fetchProjects: () => Promise<void> // プロジェクトをフェッチする関数
-  addProject: (name: string) => Promise<string | undefined> // 非同期に変更
-  selectProject: (id: string) => void
-  updateProjectName: (id: string, name: string) => Promise<void> // 非同期に変更
-  updateProjectOpenDate: (id: string, openDate: Date) => Promise<void> // 非同期に変更
-  updateProjectUseWellWater: (id: string, useWellWater: boolean) => Promise<void> // 新しい更新関数
-  deleteProject: (id: string) => Promise<void> // 非同期に変更
+  fetchProjects: () => Promise<void>
+  setCurrentProject: (projectId: string) => void
+  addProject: (project: Omit<Project, "id" | "createdAt" | "updatedAt">) => Promise<void>
+  updateProject: (id: string, updates: Partial<Project>) => Promise<void>
+  updateProjectOpenDate: (id: string, openDate: Date) => Promise<void>
+  updateProjectUseWellWater: (id: string, useWellWater: boolean) => Promise<void>
+  deleteProject: (id: string) => Promise<void>
 }
 
-export const useProjectStore = create<ProjectStore>((set, get) => {
-  let projectSubscription: any = null // Supabaseリアルタイム購読の参照
+export const useProjectStore = create<ProjectState>()(
+  persist(
+    (set, get) => {
+      let projectSubscription: any = null
 
-  const subscribeToProjects = () => {
-    if (projectSubscription) {
-      supabaseClient.removeChannel(projectSubscription)
-    }
+      const subscribeToProjects = () => {
+        if (projectSubscription) {
+          supabaseClient.removeChannel(projectSubscription)
+          projectSubscription = null
+        }
 
-    projectSubscription = supabaseClient
-      .channel("public:projects")
-      .on("postgres_changes", { event: "*", schema: "public", table: "projects" }, (payload) => {
-        console.log("Project change received!", payload)
-        const { old, new: newRecord, event } = payload
+        projectSubscription = supabaseClient
+          .channel("public:projects")
+          .on("postgres_changes", { event: "*", schema: "public", table: "projects" }, (payload) => {
+            console.log("Project change received!", payload)
+            const { old, new: newRecord, event } = payload
 
-        set((state) => {
-          let updatedProjects = [...state.projects]
+            set((state) => {
+              let updatedProjects = [...state.projects]
 
-          if (event === "INSERT") {
-            const newProject: Project = {
-              id: newRecord.id,
-              name: newRecord.name,
-              openDate: newRecord.open_date ? new Date(newRecord.open_date) : null,
-              useWellWater: newRecord.use_well_water,
-              createdAt: new Date(newRecord.created_at),
-              updatedAt: new Date(newRecord.updated_at),
-            }
-            updatedProjects.push(newProject)
-          } else if (event === "UPDATE") {
-            updatedProjects = updatedProjects.map((p) =>
-              p.id === newRecord.id
-                ? {
-                    ...p,
-                    name: newRecord.name,
-                    openDate: newRecord.open_date ? new Date(newRecord.open_date) : null,
-                    useWellWater: newRecord.use_well_water,
-                    updatedAt: new Date(newRecord.updated_at),
-                  }
-                : p,
-            )
-          } else if (event === "DELETE") {
-            updatedProjects = updatedProjects.filter((p) => p.id !== old.id)
-            // 削除されたプロジェクトが現在選択中の場合、選択を解除
-            if (state.currentProjectId === old.id) {
-              set({ currentProjectId: null, currentProject: null })
-              useTaskStore.getState().setTasks([]) // 関連タスクもクリア
-            }
+              if (event === "INSERT") {
+                const newProject: Project = {
+                  id: newRecord.id,
+                  name: newRecord.name,
+                  description: newRecord.description,
+                  openDate: newRecord.open_date,
+                  useWellWater: newRecord.use_well_water,
+                  createdAt: new Date(newRecord.created_at),
+                  updatedAt: new Date(newRecord.updated_at),
+                }
+                updatedProjects.push(newProject)
+              } else if (event === "UPDATE") {
+                updatedProjects = updatedProjects.map((p) =>
+                  p.id === newRecord.id
+                    ? {
+                        ...p,
+                        name: newRecord.name,
+                        description: newRecord.description,
+                        openDate: newRecord.open_date,
+                        useWellWater: newRecord.use_well_water,
+                        updatedAt: new Date(newRecord.updated_at),
+                      }
+                    : p,
+                )
+              } else if (event === "DELETE") {
+                updatedProjects = updatedProjects.filter((p) => p.id !== old.id)
+              }
+
+              return { projects: updatedProjects }
+            })
+          })
+          .subscribe()
+      }
+
+      return {
+        projects: [],
+        currentProject: null,
+
+        fetchProjects: async () => {
+          useAutoSaveStore.getState().setSaving()
+          try {
+            const { data, error } = await supabaseClient
+              .from("projects")
+              .select("*")
+              .order("created_at", { ascending: false })
+
+            if (error) throw error
+
+            const fetchedProjects: Project[] = data.map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              description: p.description,
+              openDate: p.open_date,
+              useWellWater: p.use_well_water,
+              createdAt: new Date(p.created_at),
+              updatedAt: new Date(p.updated_at),
+            }))
+
+            set({ projects: fetchedProjects })
+            useAutoSaveStore.getState().setSaved()
+
+            // Start subscription
+            subscribeToProjects()
+          } catch (error) {
+            console.error("Error fetching projects:", error)
+            useAutoSaveStore.getState().setError()
           }
-          return { projects: updatedProjects }
-        })
-      })
-      .subscribe()
-  }
+        },
 
-  // 初期化時に購読を開始
-  if (typeof window !== "undefined") {
-    subscribeToProjects()
-  }
+        setCurrentProject: (projectId: string) => {
+          const project = get().projects.find((p) => p.id === projectId)
+          set({ currentProject: project || null })
+        },
 
-  return {
-    projects: [],
-    currentProjectId: null,
-    currentProject: null,
+        addProject: async (project) => {
+          useAutoSaveStore.getState().setSaving()
+          try {
+            const { data, error } = await supabaseClient
+              .from("projects")
+              .insert({
+                name: project.name,
+                description: project.description,
+                open_date: project.openDate,
+                use_well_water: project.useWellWater,
+              })
+              .select()
+              .single()
 
-    fetchProjects: async () => {
-      try {
-        const { data, error } = await supabaseClient
-          .from("projects")
-          .select("*")
-          .order("created_at", { ascending: true })
-        if (error) throw error
+            if (error) throw error
 
-        const fetchedProjects: Project[] = data.map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          openDate: p.open_date ? new Date(p.open_date) : null,
-          useWellWater: p.use_well_water,
-          createdAt: new Date(p.created_at),
-          updatedAt: new Date(p.updated_at),
-        }))
-        set({ projects: fetchedProjects })
-
-        // 初回ロード時にプロジェクトが1つもなければ、自動で1つ作成
-        if (fetchedProjects.length === 0) {
-          const newProjectId = await get().addProject("新規プロジェクト 1")
-          if (newProjectId) {
-            get().selectProject(newProjectId)
+            useAutoSaveStore.getState().setSaved()
+          } catch (error) {
+            console.error("Error adding project:", error)
+            useAutoSaveStore.getState().setError()
           }
-        } else if (!get().currentProjectId && fetchedProjects.length > 0) {
-          // currentProjectIdが設定されていない場合、最初のプロジェクトを選択
-          get().selectProject(fetchedProjects[0].id)
-        }
-      } catch (error) {
-        console.error("Error fetching projects:", error)
-        useAutoSaveStore.getState().setError()
-      }
-    },
+        },
 
-    addProject: async (name: string) => {
-      useAutoSaveStore.getState().setSaving()
-      try {
-        const { data, error } = await supabaseClient
-          .from("projects")
-          .insert({ name, open_date: null, use_well_water: false })
-          .select()
-          .single()
+        updateProject: async (id, updates) => {
+          useAutoSaveStore.getState().setSaving()
+          try {
+            const updatePayload: { [key: string]: any } = { updated_at: new Date().toISOString() }
+            if (updates.name !== undefined) updatePayload.name = updates.name
+            if (updates.description !== undefined) updatePayload.description = updates.description
+            if (updates.openDate !== undefined) updatePayload.open_date = updates.openDate
+            if (updates.useWellWater !== undefined) updatePayload.use_well_water = updates.useWellWater
 
-        if (error) throw error
+            const { error } = await supabaseClient.from("projects").update(updatePayload).eq("id", id)
 
-        const newProject: Project = {
-          id: data.id,
-          name: data.name,
-          openDate: data.open_date ? new Date(data.open_date) : null,
-          useWellWater: data.use_well_water,
-          createdAt: new Date(data.created_at),
-          updatedAt: new Date(data.updated_at),
-        }
+            if (error) throw error
 
-        set((state) => ({
-          projects: [...state.projects, newProject],
-          currentProjectId: newProject.id,
-          currentProject: newProject,
-        }))
-
-        useTaskStore.getState().setTasks([]) // 新規プロジェクトのタスクをクリア
-        useAutoSaveStore.getState().setSaved()
-        return newProject.id
-      } catch (error) {
-        console.error("Error adding project:", error)
-        useAutoSaveStore.getState().setError()
-        return undefined
-      }
-    },
-
-    selectProject: (id: string) => {
-      const project = get().projects.find((p) => p.id === id) || null
-      set({ currentProjectId: id, currentProject: project })
-
-      // プロジェクトを切り替えたら、そのプロジェクトのタスクを読み込む
-      if (id) {
-        useTaskStore.getState().fetchTasks(id)
-      } else {
-        useTaskStore.getState().setTasks([])
-      }
-    },
-
-    updateProjectName: async (id: string, name: string) => {
-      useAutoSaveStore.getState().setSaving()
-      try {
-        const { data, error } = await supabaseClient
-          .from("projects")
-          .update({ name, updated_at: new Date().toISOString() })
-          .eq("id", id)
-          .select()
-          .single()
-
-        if (error) throw error
-
-        const updatedProject: Project = {
-          id: data.id,
-          name: data.name,
-          openDate: data.open_date ? new Date(data.open_date) : null,
-          useWellWater: data.use_well_water,
-          createdAt: new Date(data.created_at),
-          updatedAt: new Date(data.updated_at),
-        }
-
-        set((state) => ({
-          projects: state.projects.map((p) => (p.id === id ? updatedProject : p)),
-          currentProject: state.currentProject?.id === id ? updatedProject : state.currentProject,
-        }))
-        useAutoSaveStore.getState().setSaved()
-      } catch (error) {
-        console.error("Error updating project name:", error)
-        useAutoSaveStore.getState().setError()
-      }
-    },
-
-    updateProjectOpenDate: async (id: string, openDate: Date) => {
-      useAutoSaveStore.getState().setSaving()
-      try {
-        const { data, error } = await supabaseClient
-          .from("projects")
-          .update({ open_date: openDate.toISOString(), updated_at: new Date().toISOString() })
-          .eq("id", id)
-          .select()
-          .single()
-
-        if (error) throw error
-
-        const updatedProject: Project = {
-          id: data.id,
-          name: data.name,
-          openDate: data.open_date ? new Date(data.open_date) : null,
-          useWellWater: data.use_well_water,
-          createdAt: new Date(data.created_at),
-          updatedAt: new Date(data.updated_at),
-        }
-
-        set((state) => ({
-          projects: state.projects.map((p) => (p.id === id ? updatedProject : p)),
-          currentProject: state.currentProject?.id === id ? updatedProject : state.currentProject,
-        }))
-        useAutoSaveStore.getState().setSaved()
-      } catch (error) {
-        console.error("Error updating project open date:", error)
-        useAutoSaveStore.getState().setError()
-      }
-    },
-
-    updateProjectUseWellWater: async (id: string, useWellWater: boolean) => {
-      useAutoSaveStore.getState().setSaving()
-      try {
-        const { data, error } = await supabaseClient
-          .from("projects")
-          .update({ use_well_water: useWellWater, updated_at: new Date().toISOString() })
-          .eq("id", id)
-          .select()
-          .single()
-
-        if (error) throw error
-
-        const updatedProject: Project = {
-          id: data.id,
-          name: data.name,
-          openDate: data.open_date ? new Date(data.open_date) : null,
-          useWellWater: data.use_well_water,
-          createdAt: new Date(data.created_at),
-          updatedAt: new Date(data.updated_at),
-        }
-
-        set((state) => ({
-          projects: state.projects.map((p) => (p.id === id ? updatedProject : p)),
-          currentProject: state.currentProject?.id === id ? updatedProject : state.currentProject,
-        }))
-        useAutoSaveStore.getState().setSaved()
-      } catch (error) {
-        console.error("Error updating project use well water:", error)
-        useAutoSaveStore.getState().setError()
-      }
-    },
-
-    deleteProject: async (id: string) => {
-      useAutoSaveStore.getState().setSaving()
-      try {
-        // 関連するタスクも削除されるようにDBでCASCADE DELETEを設定済み
-        const { error } = await supabaseClient.from("projects").delete().eq("id", id)
-
-        if (error) throw error
-
-        // Realtimeが状態を更新するので、ここではローカルの状態更新は不要
-        // ただし、currentProjectの切り替えは必要
-        const { projects, currentProjectId } = get()
-        const filteredProjects = projects.filter((p) => p.id !== id)
-
-        let newCurrentId = currentProjectId
-        let newCurrentProject = null
-
-        if (currentProjectId === id) {
-          if (filteredProjects.length > 0) {
-            newCurrentId = filteredProjects[0].id
-            newCurrentProject = filteredProjects[0]
-          } else {
-            newCurrentId = null
+            useAutoSaveStore.getState().setSaved()
+          } catch (error) {
+            console.error("Error updating project:", error)
+            useAutoSaveStore.getState().setError()
           }
-          useTaskStore.getState().setTasks([]) // 関連タスクもクリア
-        } else if (currentProjectId) {
-          newCurrentProject = projects.find((p) => p.id === currentProjectId) || null
-        }
+        },
 
-        set({
-          projects: filteredProjects,
-          currentProjectId: newCurrentId,
-          currentProject: newCurrentProject,
-        })
+        updateProjectOpenDate: async (id, openDate) => {
+          await get().updateProject(id, { openDate: openDate.toISOString() })
+        },
 
-        useAutoSaveStore.getState().setSaved()
-      } catch (error) {
-        console.error("Error deleting project:", error)
-        useAutoSaveStore.getState().setError()
+        updateProjectUseWellWater: async (id, useWellWater) => {
+          await get().updateProject(id, { useWellWater })
+        },
+
+        deleteProject: async (id) => {
+          useAutoSaveStore.getState().setSaving()
+          try {
+            const { error } = await supabaseClient.from("projects").delete().eq("id", id)
+
+            if (error) throw error
+
+            useAutoSaveStore.getState().setSaved()
+          } catch (error) {
+            console.error("Error deleting project:", error)
+            useAutoSaveStore.getState().setError()
+          }
+        },
       }
     },
-  }
-})
+    {
+      name: "car-wash-projects",
+    },
+  ),
+)

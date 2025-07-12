@@ -33,7 +33,7 @@ interface GanttChartProps {
 
 export function GanttChart({ projectId }: GanttChartProps) {
   const { tasks, addTask, updateTask, deleteTask, updateSubTaskItem, toggleTaskVisibility } = useTaskStore()
-  const { projects, updateProject } = useProjectStore()
+  const { projects } = useProjectStore()
   const { setIsSaving } = useAutoSaveStore()
   const { toast } = useToast()
 
@@ -47,6 +47,7 @@ export function GanttChart({ projectId }: GanttChartProps) {
   const [newTaskEndDate, setNewTaskEndDate] = useState<Date | undefined>(undefined)
   const [newTaskStatus, setNewTaskStatus] = useState<TaskStatus>("未着手")
   const [newTaskProgress, setNewTaskProgress] = useState(0)
+  const [newTaskCategory, setNewTaskCategory] = useState("バックオフィス")
   const [newTaskDependencies, setNewTaskDependencies] = useState<string[]>([])
   const [newTaskSubTasks, setNewTaskSubTasks] = useState<SubTaskCategory[]>([])
   const [newTaskIsHidden, setNewTaskIsHidden] = useState(false)
@@ -55,43 +56,19 @@ export function GanttChart({ projectId }: GanttChartProps) {
   const [viewMode, setViewMode] = useState<"day" | "week" | "month">("week")
   const [showHiddenTasks, setShowHiddenTasks] = useState(false)
 
-  // Auto-save effect
   useEffect(() => {
     const saveTasks = async () => {
       setIsSaving(true)
-      // Simulate API call or heavy computation
       await new Promise((resolve) => setTimeout(resolve, 500))
-      // Tasks are already saved to localStorage by zustand middleware in task-store
       setIsSaving(false)
     }
 
     const handler = setTimeout(() => {
       saveTasks()
-    }, 1000) // Save after 1 second of inactivity
+    }, 1000)
 
     return () => clearTimeout(handler)
   }, [tasks, setIsSaving])
-
-  useEffect(() => {
-    if (projectOpenDate) {
-      // Adjust tasks if they go beyond the open date
-      const updatedTasks = tasks[projectId]?.map((task) => {
-        const taskEndDate = new Date(task.endDate)
-        if (taskEndDate > projectOpenDate) {
-          const newEndDate = projectOpenDate
-          const duration = differenceInDays(newEndDate, new Date(task.startDate))
-          return {
-            ...task,
-            endDate: newEndDate.getTime(),
-            startDate: addDays(newEndDate, -duration).getTime(), // Keep duration if possible
-          }
-        }
-        return task
-      })
-      // This would ideally trigger an updateTask for each, but for simplicity, we'll just re-render
-      // In a real app, you'd dispatch updates to the store for each modified task
-    }
-  }, [projectOpenDate, tasks, projectId])
 
   const openEditDialog = (task: Task) => {
     setEditingTask(task)
@@ -100,13 +77,14 @@ export function GanttChart({ projectId }: GanttChartProps) {
     setNewTaskEndDate(new Date(task.endDate))
     setNewTaskStatus(task.status)
     setNewTaskProgress(task.progress)
+    setNewTaskCategory(task.category)
     setNewTaskDependencies(task.dependencies || [])
-    setNewTaskSubTasks(task.subTasks ? JSON.parse(JSON.stringify(task.subTasks)) : []) // Deep copy
+    setNewTaskSubTasks(task.subTasks ? JSON.parse(JSON.stringify(task.subTasks)) : [])
     setNewTaskIsHidden(task.isHidden || false)
     setIsTaskDialogOpen(true)
   }
 
-  const handleSaveTask = () => {
+  const handleSaveTask = async () => {
     if (!newTaskName.trim() || !newTaskStartDate || !newTaskEndDate) {
       toast({
         title: "エラー",
@@ -131,19 +109,20 @@ export function GanttChart({ projectId }: GanttChartProps) {
       endDate: newTaskEndDate.getTime(),
       status: newTaskStatus,
       progress: newTaskProgress,
+      category: newTaskCategory,
       dependencies: newTaskDependencies,
       subTasks: newTaskSubTasks,
       isHidden: newTaskIsHidden,
     }
 
     if (editingTask) {
-      updateTask(projectId, editingTask.id, taskData)
+      await updateTask(projectId, editingTask.id, taskData)
       toast({
         title: "タスク更新完了",
         description: `「${newTaskName}」を更新しました。`,
       })
     } else {
-      addTask(projectId, taskData)
+      await addTask(projectId, taskData)
       toast({
         title: "タスク追加完了",
         description: `「${newTaskName}」を追加しました。`,
@@ -153,8 +132,8 @@ export function GanttChart({ projectId }: GanttChartProps) {
     setIsTaskDialogOpen(false)
   }
 
-  const handleDeleteTask = (taskId: string) => {
-    deleteTask(projectId, taskId)
+  const handleDeleteTask = async (taskId: string) => {
+    await deleteTask(projectId, taskId)
     toast({
       title: "タスク削除完了",
       description: "タスクを削除しました。",
@@ -170,15 +149,15 @@ export function GanttChart({ projectId }: GanttChartProps) {
     setNewTaskEndDate(undefined)
     setNewTaskStatus("未着手")
     setNewTaskProgress(0)
+    setNewTaskCategory("バックオフィス")
     setNewTaskDependencies([])
     setNewTaskSubTasks([])
     setNewTaskIsHidden(false)
   }
 
-  const handleSubTaskItemChange = (categoryId: string, itemId: string, completed: boolean) => {
+  const handleSubTaskItemChange = async (categoryId: string, itemId: string, completed: boolean) => {
     if (editingTask) {
-      updateSubTaskItem(projectId, editingTask.id, categoryId, itemId, completed)
-      // Update local state for immediate UI feedback in dialog
+      await updateSubTaskItem(projectId, editingTask.id, categoryId, itemId, completed)
       setNewTaskSubTasks((prevSubTasks) =>
         prevSubTasks.map((category) =>
           category.id === categoryId
@@ -192,8 +171,8 @@ export function GanttChart({ projectId }: GanttChartProps) {
     }
   }
 
-  const handleToggleTaskVisibility = (taskId: string, isHidden: boolean) => {
-    toggleTaskVisibility(projectId, taskId, isHidden)
+  const handleToggleTaskVisibility = async (taskId: string, isHidden: boolean) => {
+    await toggleTaskVisibility(projectId, taskId, isHidden)
     toast({
       title: "タスク表示設定更新",
       description: isHidden ? "タスクを非表示にしました。" : "タスクを表示しました。",
@@ -207,7 +186,7 @@ export function GanttChart({ projectId }: GanttChartProps) {
       case "week":
         return 7
       case "month":
-        return 30 // Approximate
+        return 30
       default:
         return 7
     }
@@ -227,24 +206,31 @@ export function GanttChart({ projectId }: GanttChartProps) {
     setStartDate((prev) => (direction === "next" ? addDays(prev, amount) : addDays(prev, -amount)))
   }
 
-  const getCategoryBaseColor = (category: string) => {
+  const getCategoryColor = (category: string) => {
     switch (category) {
       case "洗車場開発":
-        return "bg-orange-500" // オレンジ色
+        return "bg-orange-500"
       case "バックオフィス":
-        return "bg-blue-500" // 青色
+        return "bg-blue-500"
       case "マイルストーン":
-        return "bg-yellow-500" // マイルストーンは黄色
+        return "bg-yellow-500"
       default:
-        return "bg-gray-400" // デフォルト
+        return "bg-gray-400"
     }
   }
 
   const filteredTasks = useMemo(() => {
-    return (tasks[projectId] || []).filter((task) => showHiddenTasks || !task.isHidden)
-  }, [tasks, projectId, showHiddenTasks])
+    return (tasks || []).filter((task) => {
+      // マイルストーンカテゴリのタスクは表示しない
+      if (task.category === "マイルストーン") {
+        return false
+      }
+      // 非表示タスクのフィルタリング
+      return showHiddenTasks || !task.isHidden
+    })
+  }, [tasks, showHiddenTasks])
 
-  const getTaskPositionAndWidth = (task: Task, dayIndex: number, totalDays: number) => {
+  const getTaskPositionAndWidth = (task: Task) => {
     const taskStart = startOfDay(new Date(task.startDate))
     const taskEnd = endOfDay(new Date(task.endDate))
     const viewStart = startOfDay(datesInView[0])
@@ -254,23 +240,17 @@ export function GanttChart({ projectId }: GanttChartProps) {
     const intervalEnd = Math.min(viewEnd.getTime(), taskEnd.getTime())
 
     if (intervalEnd < intervalStart) {
-      return { left: 0, width: 0, display: "none" } // Task is outside current view
+      return { left: 0, width: 0, display: "none" }
     }
 
     const totalViewDuration = differenceInDays(viewEnd, viewStart) + 1
     const taskDurationInView = differenceInDays(new Date(intervalEnd), new Date(intervalStart)) + 1
-
     const offsetDays = differenceInDays(new Date(intervalStart), viewStart)
 
     const left = (offsetDays / totalViewDuration) * 100
     const width = (taskDurationInView / totalViewDuration) * 100
 
-    return { left: `${left}%`, width: `${width}%`, display: "block`" }
-  }
-
-  // 進捗バーの色は青色を維持
-  const getProgressBarColor = (status: TaskStatus) => {
-    return "bg-blue-700"
+    return { left: `${left}%`, width: `${width}%`, display: "block" }
   }
 
   return (
@@ -332,6 +312,21 @@ export function GanttChart({ projectId }: GanttChartProps) {
                     onChange={(e) => setNewTaskName(e.target.value)}
                     className="col-span-3"
                   />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="category" className="text-right">
+                    カテゴリ
+                  </Label>
+                  <Select value={newTaskCategory} onValueChange={setNewTaskCategory}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="カテゴリを選択" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="洗車場開発">洗車場開発</SelectItem>
+                      <SelectItem value="バックオフィス">バックオフィス</SelectItem>
+                      <SelectItem value="マイルストーン">マイルストーン</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="startDate" className="text-right">
@@ -444,7 +439,6 @@ export function GanttChart({ projectId }: GanttChartProps) {
                   </div>
                 </div>
 
-                {/* サブタスクセクション */}
                 {newTaskSubTasks.length > 0 && (
                   <>
                     <Separator className="my-4" />
@@ -495,7 +489,6 @@ export function GanttChart({ projectId }: GanttChartProps) {
 
       <div className="overflow-x-auto">
         <div className="grid grid-cols-[200px_repeat(auto-fit,minmax(50px,1fr))] gap-1 min-w-[800px]">
-          {/* Header Row */}
           <div className="sticky left-0 bg-white z-10 p-2 font-semibold border-b border-r text-slate-700">タスク名</div>
           {datesInView.map((date, index) => (
             <div
@@ -508,7 +501,6 @@ export function GanttChart({ projectId }: GanttChartProps) {
             </div>
           ))}
 
-          {/* Task Rows */}
           {filteredTasks.length === 0 && (
             <div className="col-span-full text-center py-8 text-slate-500">
               <p>タスクがまだありません。「タスク追加」ボタンから作成してください。</p>
@@ -523,7 +515,7 @@ export function GanttChart({ projectId }: GanttChartProps) {
                 </Button>
               </div>
               {datesInView.map((date, index) => {
-                const { left, width, display } = getTaskPositionAndWidth(task, index, daysInView)
+                const { left, width, display } = getTaskPositionAndWidth(task)
                 const isTaskDay = isWithinInterval(date, {
                   start: startOfDay(new Date(task.startDate)),
                   end: endOfDay(new Date(task.endDate)),
@@ -537,7 +529,7 @@ export function GanttChart({ projectId }: GanttChartProps) {
                   >
                     {isTaskDay && (
                       <div
-                        className={cn("absolute h-3 rounded-sm", getCategoryBaseColor(task.category))} // カテゴリベースの色を適用
+                        className={cn("absolute h-3 rounded-sm", getCategoryColor(task.category))}
                         style={{
                           left: left,
                           width: width,
@@ -546,7 +538,7 @@ export function GanttChart({ projectId }: GanttChartProps) {
                         title={`${task.name} (${format(new Date(task.startDate), "yyyy/MM/dd")} - ${format(new Date(task.endDate), "yyyy/MM/dd")})`}
                       >
                         <div
-                          className="absolute left-0 top-0 h-full bg-blue-700 rounded-sm" // 進捗バーの色は青色を維持
+                          className="absolute left-0 top-0 h-full bg-blue-700 rounded-sm opacity-80"
                           style={{ width: `${task.progress}%` }}
                         />
                       </div>

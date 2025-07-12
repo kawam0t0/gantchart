@@ -11,13 +11,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // クライアントサイドで使用するためのSupabaseクライアントをシングルトンパターンで作成
 // これにより、複数の場所でインポートされても常に同じインスタンスが使用され、
 // 不必要な再初期化を防ぎます。
-let supabase: ReturnType<typeof createClient> | undefined
+const supabaseUrlNonNull = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKeyNonNull = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-function getSupabaseClient() {
-  if (!supabase) {
-    supabase = createClient(supabaseUrl!, supabaseAnonKey!)
-  }
-  return supabase
-}
-
-export const supabaseClient = getSupabaseClient()
+export const supabaseClient = createClient(supabaseUrlNonNull, supabaseAnonKeyNonNull)
