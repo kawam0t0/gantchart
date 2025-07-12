@@ -78,10 +78,10 @@ export function GanttChart({}: GanttChartProps) {
     name: "",
     startDate: new Date(),
     endDate: addDays(new Date(), 7),
-    category: "洗車場開発", // groupからcategoryに変更
-    color: "#ff9900",
+    category: "洗車場開発",
+    color: "#f97316", // ここをオレンジ色にデフォルト設定
     memo: "",
-    isHidden: false, // isHiddenを追加
+    isHidden: false,
   })
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -142,7 +142,7 @@ export function GanttChart({}: GanttChartProps) {
     return {
       left: `${startOffset * 40}px`,
       width: `${Math.max(visibleDuration * 40 - 4, 20)}px`, // 最小幅を20pxに設定
-      backgroundColor: task.color || "#3b82f6",
+      backgroundColor: task.color || "#f97316", // ここをtask.colorを優先し、デフォルトをオレンジに設定
       transition: "all 0.2s ease-in-out",
       boxShadow: hoveredTaskId === task.id ? "0 4px 12px 0 rgba(0, 0, 0, 0.15)" : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
       position: "absolute" as const,
