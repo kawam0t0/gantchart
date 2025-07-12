@@ -5,7 +5,7 @@ import type React from "react"
 import { useEffect, useRef, useState, useMemo } from "react"
 import { addDays, differenceInDays, format, isAfter, isBefore, isSameDay, eachDayOfInterval } from "date-fns"
 import { ja } from "date-fns/locale"
-import { ChevronLeft, ChevronRight, Plus, Calendar, Edit2, Trash2, Info, EyeOff, Eye } from "lucide-react" // EyeOff, Eyeを追加
+import { ChevronLeft, ChevronRight, Plus, Calendar, Edit2, Trash2, Info, EyeOff, Eye } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -23,11 +23,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox" // Checkboxを追加
+import { Checkbox } from "@/components/ui/checkbox"
 import { useTaskStore, type Task, type SubTaskCategory } from "@/lib/task-store"
 import { useProjectStore } from "@/lib/project-store"
 import { cn } from "@/lib/utils"
-import { useToast } from "@/hooks/use-toast" // useToastを追加
+import { useToast } from "@/hooks/use-toast"
 
 // 期間を表示するためのヘルパー関数
 const formatDuration = (startDate: number, endDate: number) => {
@@ -58,9 +58,16 @@ const formatDuration = (startDate: number, endDate: number) => {
 type GanttChartProps = {}
 
 export function GanttChart({}: GanttChartProps) {
-  const { tasks, addTask, updateTask, deleteTask, updateSubTaskItem, toggleTaskVisibility, setTasks } = useTaskStore() // setTasksを追加
+  const { tasks, addTask, updateTask, deleteTask, updateSubTaskItem, toggleTaskVisibility, setTasks } = useTaskStore()
   const { currentProject, currentProjectId } = useProjectStore()
   const { toast } = useToast()
+
+  // カテゴリごとのデフォルト色を定義
+  const categoryColors: { [key: string]: string } = {
+    洗車場開発: "#f97316", // オレンジ
+    マイルストーン: "#3b82f6", // 青
+    バックオフィス: "#3b82f6", // 青
+  }
 
   // viewStartDateの初期値を安全に設定
   const [viewStartDate, setViewStartDate] = useState(() => {
@@ -73,13 +80,13 @@ export function GanttChart({}: GanttChartProps) {
     return new Date()
   })
 
-  const [editingTask, setEditingTask] = useState<Task | null>(null) // Task型を使用
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [newTask, setNewTask] = useState({
     name: "",
     startDate: new Date(),
     endDate: addDays(new Date(), 7),
     category: "洗車場開発",
-    color: "#f97316", // ここをオレンジ色にデフォルト設定
+    color: categoryColors["洗車場開発"], // デフォルトカテゴリのデフォルト色を設定
     memo: "",
     isHidden: false,
   })
@@ -91,7 +98,7 @@ export function GanttChart({}: GanttChartProps) {
   const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null)
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 })
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const [showHiddenTasks, setShowHiddenTasks] = useState(false) // 非表示タスクの表示切り替え
+  const [showHiddenTasks, setShowHiddenTasks] = useState(false)
 
   const ganttRef = useRef<HTMLDivElement>(null)
 
@@ -117,7 +124,6 @@ export function GanttChart({}: GanttChartProps) {
 
   // タスクのスタイル関数
   const getTaskStyle = (task: Task) => {
-    // Task型を使用
     const startDate = new Date(task.startDate)
     const endDate = new Date(task.endDate)
 
@@ -139,10 +145,13 @@ export function GanttChart({}: GanttChartProps) {
     // 表示可能な期間を計算
     const visibleDuration = Math.min(taskDuration, daysToShow - startOffset)
 
+    // タスクの色が設定されていない場合、カテゴリのデフォルト色を使用
+    const backgroundColor = task.color || categoryColors[task.category] || "#3b82f6" // 最終的なフォールバックは青
+
     return {
       left: `${startOffset * 40}px`,
       width: `${Math.max(visibleDuration * 40 - 4, 20)}px`, // 最小幅を20pxに設定
-      backgroundColor: task.color || "#3b82f6", // task.colorが設定されていない場合のデフォルトを青に設定
+      backgroundColor: backgroundColor,
       transition: "all 0.2s ease-in-out",
       boxShadow: hoveredTaskId === task.id ? "0 4px 12px 0 rgba(0, 0, 0, 0.15)" : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
       position: "absolute" as const,
@@ -155,7 +164,6 @@ export function GanttChart({}: GanttChartProps) {
 
   // ホバー開始
   const handleMouseEnter = (e: React.MouseEvent, task: Task) => {
-    // Task型を使用
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current)
     }
@@ -190,7 +198,6 @@ export function GanttChart({}: GanttChartProps) {
 
   // ドラッグ開始
   const handleDragStart = (e: React.MouseEvent, task: Task, type: string) => {
-    // Task型を使用
     e.stopPropagation()
     setHoveredTaskId(null) // ドラッグ開始時にツールチップを非表示
     setDragInfo({
@@ -204,7 +211,6 @@ export function GanttChart({}: GanttChartProps) {
 
   // ドラッグ中
   const handleDrag = async (e: MouseEvent) => {
-    // 非同期に変更
     if (!dragInfo || !currentProjectId) return
 
     const deltaX = e.clientX - dragInfo.initialX
@@ -272,7 +278,7 @@ export function GanttChart({}: GanttChartProps) {
       document.removeEventListener("mousemove", handleMouseMove)
       document.removeEventListener("mouseup", handleMouseUp)
     }
-  }, [dragInfo, tasks, currentProjectId]) // tasksとcurrentProjectIdを依存配列に追加
+  }, [dragInfo, tasks, currentProjectId])
 
   // コンポーネントのクリーンアップ
   useEffect(() => {
@@ -285,14 +291,12 @@ export function GanttChart({}: GanttChartProps) {
 
   // タスク編集ダイアログを開く
   const openEditDialog = (task: Task) => {
-    // Task型を使用
     setEditingTask(task)
     setIsEditDialogOpen(true)
   }
 
   // 新しいタスクを追加
   const handleAddTask = async () => {
-    // 非同期に変更
     if (!currentProjectId) {
       toast({
         title: "エラー",
@@ -319,20 +323,20 @@ export function GanttChart({}: GanttChartProps) {
     }
 
     await addTask(currentProjectId, {
-      // 非同期処理を待つ
       name: newTask.name,
       startDate: newTask.startDate.getTime(),
       endDate: newTask.endDate.getTime(),
       category: newTask.category,
       subTasks: newTask.subTasks,
       isHidden: newTask.isHidden,
+      color: newTask.color, // 新しいタスクの色も保存
     })
     setNewTask({
       name: "",
       startDate: new Date(),
       endDate: addDays(new Date(), 7),
       category: "洗車場開発",
-      color: "#f97316",
+      color: categoryColors["洗車場開発"], // デフォルトカテゴリのデフォルト色を設定
       memo: "",
       isHidden: false,
     })
@@ -345,7 +349,6 @@ export function GanttChart({}: GanttChartProps) {
 
   // タスクを更新
   const handleUpdateTask = async () => {
-    // 非同期に変更
     if (!editingTask || !currentProjectId) return
     if (!editingTask.name.trim() || !editingTask.startDate || !editingTask.endDate) {
       toast({
@@ -365,7 +368,6 @@ export function GanttChart({}: GanttChartProps) {
     }
 
     await updateTask(currentProjectId, editingTask.id, {
-      // 非同期処理を待つ
       name: editingTask.name,
       startDate: editingTask.startDate,
       endDate: editingTask.endDate,
@@ -384,10 +386,9 @@ export function GanttChart({}: GanttChartProps) {
 
   // タスクを削除
   const handleDeleteTask = async () => {
-    // 非同期に変更
     if (!editingTask || !currentProjectId) return
     if (window.confirm(`タスク「${editingTask.name}」を本当に削除しますか？`)) {
-      await deleteTask(currentProjectId, editingTask.id) // 非同期処理を待つ
+      await deleteTask(currentProjectId, editingTask.id)
       setIsEditDialogOpen(false)
       toast({
         title: "タスク削除完了",
@@ -433,7 +434,6 @@ export function GanttChart({}: GanttChartProps) {
     const filtered = tasks.filter((task) => showHiddenTasks || !task.isHidden)
     return filtered.reduce((acc: { [key: string]: Task[] }, task) => {
       if (!acc[task.category]) {
-        // groupからcategoryに変更
         acc[task.category] = []
       }
       acc[task.category].push(task)
@@ -549,14 +549,11 @@ export function GanttChart({}: GanttChartProps) {
                   </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="category">カテゴリ</Label> {/* groupからcategoryに変更 */}
+                  <Label htmlFor="category">カテゴリ</Label>
                   <Select
                     value={newTask.category}
                     onValueChange={(value) => {
-                      let defaultColor = "#3b82f6" // その他のカテゴリのデフォルト色を青に設定
-                      if (value === "洗車場開発") {
-                        defaultColor = "#f97316" // 「洗車場開発」はオレンジ
-                      }
+                      const defaultColor = categoryColors[value] || "#3b82f6" // カテゴリに応じたデフォルト色
                       setNewTask({ ...newTask, category: value, color: defaultColor })
                     }}
                   >
@@ -727,16 +724,75 @@ export function GanttChart({}: GanttChartProps) {
           </div>
 
           {/* グループとタスク */}
-          {Object.entries(groupedTasks).map(
-            (
-              [category, groupTasks]: [string, Task[]], // groupからcategoryに変更
-            ) => (
-              <div key={category}>
-                <div className="flex">
-                  <div className="w-80 shrink-0 border-r border-b bg-blue-50 px-4 py-2 font-medium text-slate-700 sticky left-0 z-20">
-                    {category}
+          {Object.entries(groupedTasks).map(([category, groupTasks]: [string, Task[]]) => (
+            <div key={category}>
+              <div className="flex">
+                <div className="w-80 shrink-0 border-r border-b bg-blue-50 px-4 py-2 font-medium text-slate-700 sticky left-0 z-20">
+                  {category}
+                </div>
+                <div className="flex border-b">
+                  {dateRange.map((date, index) => {
+                    const isMonthStart = isFirstDayOfMonth(date)
+                    const isToday = isSameDay(date, today)
+                    const isOpenDay = openDate && isSameDay(date, openDate)
+
+                    return (
+                      <div
+                        key={index}
+                        className={cn(
+                          "w-10 shrink-0 border-r",
+                          date.getDay() === 0 ? "bg-red-50" : date.getDay() === 6 ? "bg-blue-50" : "",
+                          isMonthStart ? "border-l-2 border-l-blue-300" : "",
+                          isToday ? "bg-yellow-50" : "",
+                          isOpenDay ? "bg-yellow-200 bg-opacity-50" : "",
+                        )}
+                      />
+                    )
+                  })}
+                </div>
+              </div>
+
+              {groupTasks.map((task: Task) => (
+                <div key={task.id} className="flex relative">
+                  <div
+                    className="w-80 shrink-0 border-r border-b px-4 py-2 flex items-center justify-between sticky left-0 bg-white z-20 hover:bg-slate-50 transition-colors group"
+                    onDoubleClick={() => openEditDialog(task)}
+                  >
+                    <div className="flex items-center space-x-2 w-full">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm">{task.name}</span>
+                          <span className="text-xs text-blue-600 whitespace-nowrap">
+                            {formatDuration(task.startDate, task.endDate)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center flex-shrink-0">
+                        {task.memo && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button className="mr-1 text-slate-400 hover:text-slate-700">
+                                <Info className="h-3.5 w-3.5" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-80 p-4">
+                              <div className="space-y-2">
+                                <h4 className="font-medium">メモ</h4>
+                                <p className="text-sm text-slate-600">{task.memo}</p>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                        <button
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-slate-700"
+                          onClick={() => openEditDialog(task)}
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex border-b">
+                  <div className="flex border-b relative h-10">
                     {dateRange.map((date, index) => {
                       const isMonthStart = isFirstDayOfMonth(date)
                       const isToday = isSameDay(date, today)
@@ -755,100 +811,33 @@ export function GanttChart({}: GanttChartProps) {
                         />
                       )
                     })}
+
+                    {/* タスクバー */}
+                    <div
+                      className="rounded-md flex items-center justify-center text-xs text-white font-medium px-2 overflow-hidden cursor-move relative"
+                      style={getTaskStyle(task)}
+                      onMouseDown={(e) => handleDragStart(e, task, "move")}
+                      onDoubleClick={() => openEditDialog(task)}
+                      onMouseEnter={(e) => handleMouseEnter(e, task)}
+                      onMouseLeave={handleMouseLeave}
+                    >
+                      <span className="truncate">{task.name}</span>
+
+                      {/* リサイズハンドル */}
+                      <div
+                        className="absolute left-0 w-1.5 h-full bg-black/20 cursor-ew-resize hover:bg-black/30 transition-colors"
+                        onMouseDown={(e) => handleDragStart(e, task, "resize-start")}
+                      />
+                      <div
+                        className="absolute right-0 w-1.5 h-full bg-black/20 cursor-ew-resize hover:bg-black/30 transition-colors"
+                        onMouseDown={(e) => handleDragStart(e, task, "resize-end")}
+                      />
+                    </div>
                   </div>
                 </div>
-
-                {groupTasks.map(
-                  (
-                    task: Task, // Task型を使用
-                  ) => (
-                    <div key={task.id} className="flex relative">
-                      <div
-                        className="w-80 shrink-0 border-r border-b px-4 py-2 flex items-center justify-between sticky left-0 bg-white z-20 hover:bg-slate-50 transition-colors group"
-                        onDoubleClick={() => openEditDialog(task)}
-                      >
-                        <div className="flex items-center space-x-2 w-full">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm">{task.name}</span>
-                              <span className="text-xs text-blue-600 whitespace-nowrap">
-                                {formatDuration(task.startDate, task.endDate)}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center flex-shrink-0">
-                            {task.memo && (
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <button className="mr-1 text-slate-400 hover:text-slate-700">
-                                    <Info className="h-3.5 w-3.5" />
-                                  </button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-80 p-4">
-                                  <div className="space-y-2">
-                                    <h4 className="font-medium">メモ</h4>
-                                    <p className="text-sm text-slate-600">{task.memo}</p>
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
-                            )}
-                            <button
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-slate-700"
-                              onClick={() => openEditDialog(task)}
-                            >
-                              <Edit2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex border-b relative h-10">
-                        {dateRange.map((date, index) => {
-                          const isMonthStart = isFirstDayOfMonth(date)
-                          const isToday = isSameDay(date, today)
-                          const isOpenDay = openDate && isSameDay(date, openDate)
-
-                          return (
-                            <div
-                              key={index}
-                              className={cn(
-                                "w-10 shrink-0 border-r",
-                                date.getDay() === 0 ? "bg-red-50" : date.getDay() === 6 ? "bg-blue-50" : "",
-                                isMonthStart ? "border-l-2 border-l-blue-300" : "",
-                                isToday ? "bg-yellow-50" : "",
-                                isOpenDay ? "bg-yellow-200 bg-opacity-50" : "",
-                              )}
-                            />
-                          )
-                        })}
-
-                        {/* タスクバー */}
-                        <div
-                          className="rounded-md flex items-center justify-center text-xs text-white font-medium px-2 overflow-hidden cursor-move relative"
-                          style={getTaskStyle(task)}
-                          onMouseDown={(e) => handleDragStart(e, task, "move")}
-                          onDoubleClick={() => openEditDialog(task)}
-                          onMouseEnter={(e) => handleMouseEnter(e, task)}
-                          onMouseLeave={handleMouseLeave}
-                        >
-                          <span className="truncate">{task.name}</span>
-
-                          {/* リサイズハンドル */}
-                          <div
-                            className="absolute left-0 w-1.5 h-full bg-black/20 cursor-ew-resize hover:bg-black/30 transition-colors"
-                            onMouseDown={(e) => handleDragStart(e, task, "resize-start")}
-                          />
-                          <div
-                            className="absolute right-0 w-1.5 h-full bg-black/20 cursor-ew-resize hover:bg-black/30 transition-colors"
-                            onMouseDown={(e) => handleDragStart(e, task, "resize-end")}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ),
-                )}
-              </div>
-            ),
-          )}
+              ))}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -911,64 +900,60 @@ export function GanttChart({}: GanttChartProps) {
                   サブタスク
                 </h4>
                 <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {hoveredTask.subTasks.map(
-                    (
-                      category: SubTaskCategory, // SubTaskCategory型を使用
-                    ) => (
-                      <div key={category.id} className="bg-gray-50 rounded-lg p-3">
-                        <h5 className="font-medium text-gray-900 mb-2 text-blue-600 text-sm">{category.name}</h5>
-                        <div className="space-y-2">
-                          {category.items.map((item: any) => (
-                            <div key={item.id} className="flex items-start space-x-3">
-                              <div
-                                className={`w-4 h-4 mt-0.5 border-2 rounded-sm flex items-center justify-center flex-shrink-0 ${
-                                  item.completed ? "bg-green-500 border-green-500" : "bg-white border-gray-300"
-                                }`}
-                              >
-                                {item.completed && (
-                                  <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                )}
-                              </div>
-                              <span
-                                className={`text-xs leading-relaxed ${
-                                  item.completed ? "line-through text-gray-500" : "text-gray-700"
-                                }`}
-                              >
-                                {item.name}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                        {/* 進捗表示 */}
-                        <div className="mt-3 pt-2 border-t border-gray-200">
-                          <div className="flex justify-between items-center text-xs text-gray-600 mb-1">
-                            <span>進捗</span>
-                            <span>
-                              {Math.round(
-                                (category.items.filter((item: any) => item.completed).length / category.items.length) *
-                                  100,
+                  {hoveredTask.subTasks.map((category: SubTaskCategory) => (
+                    <div key={category.id} className="bg-gray-50 rounded-lg p-3">
+                      <h5 className="font-medium text-gray-900 mb-2 text-blue-600 text-sm">{category.name}</h5>
+                      <div className="space-y-2">
+                        {category.items.map((item: any) => (
+                          <div key={item.id} className="flex items-start space-x-3">
+                            <div
+                              className={`w-4 h-4 mt-0.5 border-2 rounded-sm flex items-center justify-center flex-shrink-0 ${
+                                item.completed ? "bg-green-500 border-green-500" : "bg-white border-gray-300"
+                              }`}
+                            >
+                              {item.completed && (
+                                <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
                               )}
-                              %
+                            </div>
+                            <span
+                              className={`text-xs leading-relaxed ${
+                                item.completed ? "line-through text-gray-500" : "text-gray-700"
+                              }`}
+                            >
+                              {item.name}
                             </span>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                              style={{
-                                width: `${(category.items.filter((item: any) => item.completed).length / category.items.length) * 100}%`,
-                              }}
-                            ></div>
-                          </div>
+                        ))}
+                      </div>
+                      {/* 進捗表示 */}
+                      <div className="mt-3 pt-2 border-t border-gray-200">
+                        <div className="flex justify-between items-center text-xs text-gray-600 mb-1">
+                          <span>進捗</span>
+                          <span>
+                            {Math.round(
+                              (category.items.filter((item: any) => item.completed).length / category.items.length) *
+                                100,
+                            )}
+                            %
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                            style={{
+                              width: `${(category.items.filter((item: any) => item.completed).length / category.items.length) * 100}%`,
+                            }}
+                          ></div>
                         </div>
                       </div>
-                    ),
-                  )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -1056,7 +1041,7 @@ export function GanttChart({}: GanttChartProps) {
                       <CalendarComponent
                         mode="single"
                         selected={new Date(editingTask.startDate)}
-                        onSelect={(date) => date && setEditingTask({ ...editingTask, startDate: date.getTime() })} // getTime()を追加
+                        onSelect={(date) => date && setEditingTask({ ...editingTask, startDate: date.getTime() })}
                         locale={ja}
                       />
                     </PopoverContent>
@@ -1081,7 +1066,7 @@ export function GanttChart({}: GanttChartProps) {
                       <CalendarComponent
                         mode="single"
                         selected={new Date(editingTask.endDate)}
-                        onSelect={(date) => date && setEditingTask({ ...editingTask, endDate: date.getTime() })} // getTime()を追加
+                        onSelect={(date) => date && setEditingTask({ ...editingTask, endDate: date.getTime() })}
                         locale={ja}
                       />
                     </PopoverContent>
@@ -1095,8 +1080,6 @@ export function GanttChart({}: GanttChartProps) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="grid gap-3">
                   <Label htmlFor="edit-category" className="text-base font-medium">
-                    {" "}
-                    {/* groupからcategoryに変更 */}
                     カテゴリ
                   </Label>
                   <Select
@@ -1182,46 +1165,41 @@ export function GanttChart({}: GanttChartProps) {
                 <div className="grid gap-3">
                   <Label className="text-lg font-semibold text-blue-700">サブタスク</Label>
                   <div className="border border-slate-200 rounded-lg p-6 max-h-96 overflow-y-auto bg-slate-50">
-                    {editingTask.subTasks.map(
-                      (
-                        category: SubTaskCategory,
-                        categoryIndex: number, // SubTaskCategory型を使用
-                      ) => (
-                        <div key={category.id} className="mb-6 last:mb-0">
-                          <h4 className="font-semibold text-lg text-slate-800 mb-4 text-blue-600 border-b-2 border-blue-200 pb-2">
-                            {category.name}
-                          </h4>
-                          <div className="space-y-3 ml-4">
-                            {category.items.map((item: any, itemIndex: number) => (
-                              <div
-                                key={item.id}
-                                className="flex items-center space-x-4 p-3 hover:bg-white rounded-lg transition-colors"
+                    {editingTask.subTasks.map((category: SubTaskCategory, categoryIndex: number) => (
+                      <div key={category.id} className="mb-6 last:mb-0">
+                        <h4 className="font-semibold text-lg text-slate-800 mb-4 text-blue-600 border-b-2 border-blue-200 pb-2">
+                          {category.name}
+                        </h4>
+                        <div className="space-y-3 ml-4">
+                          {category.items.map((item: any, itemIndex: number) => (
+                            <div
+                              key={item.id}
+                              className="flex items-center space-x-4 p-3 hover:bg-white rounded-lg transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                id={`subtask-${item.id}`}
+                                checked={item.completed}
+                                onChange={(e) => {
+                                  const updatedTask = { ...editingTask }
+                                  updatedTask.subTasks[categoryIndex].items[itemIndex].completed = e.target.checked
+                                  setEditingTask(updatedTask)
+                                }}
+                                className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                              />
+                              <label
+                                htmlFor={`subtask-${item.id}`}
+                                className={`text-base cursor-pointer flex-1 ${
+                                  item.completed ? "line-through text-gray-500" : "text-gray-700"
+                                }`}
                               >
-                                <input
-                                  type="checkbox"
-                                  id={`subtask-${item.id}`}
-                                  checked={item.completed}
-                                  onChange={(e) => {
-                                    const updatedTask = { ...editingTask }
-                                    updatedTask.subTasks[categoryIndex].items[itemIndex].completed = e.target.checked
-                                    setEditingTask(updatedTask)
-                                  }}
-                                  className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                                />
-                                <label
-                                  htmlFor={`subtask-${item.id}`}
-                                  className={`text-base cursor-pointer flex-1 ${
-                                    item.completed ? "line-through text-gray-500" : "text-gray-700"
-                                  }`}
-                                >
-                                  {item.name}
-                                </label>
-                              </div>
-                            ))}
-                          </div>
+                                {item.name}
+                              </label>
+                            </div>
+                          ))}
                         </div>
-                      ),
-                    )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
