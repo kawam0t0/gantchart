@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { format } from "date-fns"
 import { ja } from "date-fns/locale"
-import { CalendarIcon, CheckCircle2, Save } from "lucide-react"
+import { CalendarIcon, Save } from "lucide-react" // CheckCircle2 は不要になったため削除
 
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -357,6 +357,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
         offsetDays: 0,
         status: "未着手" as TaskStatus,
         subTasks: [],
+        isHidden: true, // OPEN日タスクを非表示にする
       },
     ]
 
@@ -376,7 +377,7 @@ export function SettingsPanel({}: SettingsPanelProps) {
         dependencies: [],
         category: taskData.category,
         subTasks: taskData.subTasks,
-        isHidden: false,
+        isHidden: taskData.isHidden || false, // isHiddenを考慮
       })
     })
 
@@ -390,8 +391,6 @@ export function SettingsPanel({}: SettingsPanelProps) {
 
   return (
     <div className="space-y-6 p-4">
-      {" "}
-      {/* ダイアログコンテンツ内のパディングとスペース */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-6">
         <div className="space-y-2">
           <label className="text-sm font-medium flex items-center gap-2 text-slate-700">
@@ -417,24 +416,22 @@ export function SettingsPanel({}: SettingsPanelProps) {
           </Popover>
         </div>
 
+        {/* 井戸水使用のレイアウトを修正 */}
         <div className="flex items-center space-x-2">
-          <div className="flex items-center space-x-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
-            <Checkbox
-              id="well-water"
-              checked={useWellWater}
-              onCheckedChange={(checked) => {
-                setUseWellWater(checked === true)
-              }}
-              className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
-            />
-            <label
-              htmlFor="well-water"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1.5 text-slate-700"
-            >
-              <span>井戸水使用</span>
-              {useWellWater && <CheckCircle2 className="h-3.5 w-3.5 text-blue-500" />}
-            </label>
-          </div>
+          <Checkbox
+            id="well-water"
+            checked={useWellWater}
+            onCheckedChange={(checked) => {
+              setUseWellWater(checked === true)
+            }}
+            className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
+          />
+          <label
+            htmlFor="well-water"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-700"
+          >
+            井戸水使用
+          </label>
         </div>
       </div>
       <Button

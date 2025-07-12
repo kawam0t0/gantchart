@@ -1,14 +1,15 @@
 "use client"
 
-import type React from "react"
-
-import { useRouter } from "next/navigation"
-import { useProjectStore } from "@/lib/project-store"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { ArrowLeft, Settings } from "lucide-react"
-import { format } from "date-fns"
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { format, differenceInDays } from "date-fns"
 import { ja } from "date-fns/locale"
+import { ArrowLeft, Settings, Edit } from "lucide-react"
+import { useProjectStore } from "@/lib/project-store"
+import { useAutoSaveStore } from "@/lib/auto-save-store"
+import { AutoSaveIndicator } from "./auto-save-indicator"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -17,69 +18,99 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { SettingsPanel } from "@/components/settings-panel" // SettingsPanelをインポート
+import { SettingsPanel } from "./settings-panel"
 
-type ProjectHeaderProps = {}
+interface ProjectHeaderProps {
+  projectId: string
+}
 
-export function ProjectHeader({}: ProjectHeaderProps) {
-  const router = useRouter()
-  const { currentProject, updateProjectName } = useProjectStore()
+export function ProjectHeader({ projectId }: ProjectHeaderProps) {
+  const { projects, updateProjectName } = useProjectStore()
+  const { isSaving } = useAutoSaveStore()
+  const currentProject = projects.find((p) => p.id === projectId)
 
-  if (!currentProject) {
-    return null // プロジェクトがロードされていない場合は何も表示しない
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [projectName, setProjectName] = useState(currentProject?.name || "")
+  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false)
+
+  useEffect(() => {
+    if (currentProject) {
+      setProjectName(currentProject.name)
+    }
+  }, [currentProject])
+
+  const handleNameChange = () => {
+    if (currentProject && projectName.trim() !== currentProject.name) {
+      updateProjectName(currentProject.id, projectName.trim())
+    }
+    setIsEditingName(false)
   }
 
-  const handleProjectNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateProjectName(currentProject.id, e.target.value)
-  }
+  const openDate = currentProject?.openDate ? new Date(currentProject.openDate) : null
+  const today = new Date()
+  const daysUntilOpen = openDate ? differenceInDays(openDate, today) : null
 
   return (
-    <Card className="rounded-none border-x-0 border-t-0 shadow-sm">
-      <CardContent className="p-4 flex items-center justify-between bg-white">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/")}>
-            <ArrowLeft className="h-5 w-5 text-slate-600" />
-          </Button>
-          <input
-            type="text"
-            value={currentProject.name}
-            onChange={handleProjectNameChange}
-            className="text-2xl font-bold text-slate-800 bg-transparent border-none focus:outline-none focus:ring-0 p-0 m-0"
-            aria-label="プロジェクト名"
-          />
-        </div>
-        <div className="flex items-center space-x-4">
-          <div className="text-sm text-slate-600">
-            OPEN日:{" "}
-            <span className="font-medium">
-              {currentProject.openDate
-                ? format(new Date(currentProject.openDate), "yyyy年MM月dd日", { locale: ja })
-                : "未設定"}
-            </span>
-          </div>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                className="border-slate-300 text-slate-600 hover:bg-slate-100 bg-transparent"
-                aria-label="プロジェクト設定を開く"
-              >
-                <Settings className="h-5 w-5" />
+    <header className="flex items-center justify-between p-4 border-b bg-white shadow-sm">
+      <div className="flex items-center space-x-4">
+        <Link href="/" className="text-slate-600 hover:text-slate-800 transition-colors">
+          <ArrowLeft className="h-5 w-5" />
+          <span className="sr-only">プロジェクト一覧に戻る</span>
+        </Link>
+        <div className="flex items-center space-x-2">
+          {isEditingName ? (
+            <Input
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              onBlur={handleNameChange}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleNameChange()
+                }
+              }}
+              className="text-xl font-bold text-slate-800 w-64"
+              autoFocus
+            />
+          ) : (
+            <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              {currentProject?.name || "プロジェクト名"}
+              <Button variant="ghost" size="icon" onClick={() => setIsEditingName(true)} className="h-6 w-6">
+                <Edit className="h-4 w-4 text-slate-500" />
+                <span className="sr-only">プロジェクト名を編集</span>
               </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              {" "}
-              {/* ダイアログの幅を調整 */}
-              <DialogHeader>
-                <DialogTitle>プロジェクト設定</DialogTitle>
-                <DialogDescription>プロジェクトの基本設定を編集します。</DialogDescription>
-              </DialogHeader>
-              <SettingsPanel /> {/* SettingsPanel をダイアログコンテンツとして配置 */}
-            </DialogContent>
-          </Dialog>
+            </h1>
+          )}
         </div>
-      </CardContent>
-    </Card>
+        {openDate && (
+          <div className="text-sm text-slate-600 flex items-center space-x-2">
+            <span className="font-medium">OPEN日:</span>
+            <span>{format(openDate, "yyyy年MM月dd日", { locale: ja })}</span>
+            {daysUntilOpen !== null && (
+              <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                OPENまであと{daysUntilOpen}日！
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="flex items-center space-x-4">
+        <AutoSaveIndicator isSaving={isSaving} />
+        <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="ghost" size="icon" className="text-slate-600 hover:text-slate-800">
+              <Settings className="h-5 w-5" />
+              <span className="sr-only">プロジェクト設定</span>
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>プロジェクト設定</DialogTitle>
+              <DialogDescription>プロジェクトの基本設定を編集します。</DialogDescription>
+            </DialogHeader>
+            <SettingsPanel />
+          </DialogContent>
+        </Dialog>
+      </div>
+    </header>
   )
 }
